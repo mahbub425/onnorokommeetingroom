@@ -68,7 +68,7 @@ const Register = () => {
         .from('patients')
         .select('pin')
         .eq('pin', formData.pin)
-        .single();
+        .maybeSingle();
 
       if (existingPatient) {
         setError("This PIN is already registered");

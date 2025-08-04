@@ -28,7 +28,7 @@ const Login = () => {
         .from('patients')
         .select('*')
         .eq('pin', pin)
-        .single();
+        .maybeSingle();
 
       if (fetchError || !patient) {
         setError("Invalid PIN or password");

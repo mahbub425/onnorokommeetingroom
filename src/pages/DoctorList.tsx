@@ -3,20 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import DoctorCard from "@/components/DoctorCard";
 import { Loader2 } from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
 
-interface Doctor {
-  id: string;
-  name: string;
-  degree: string;
-  designation?: string;
-  experience?: string;
-  availability_date?: string;
-  start_time?: string;
-  end_time?: string;
-  break_start?: string;
-  break_end?: string;
-  patient_limit?: number;
-}
+type Doctor = Tables<'doctors'>;
 
 const DoctorList = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);

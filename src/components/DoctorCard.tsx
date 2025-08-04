@@ -3,20 +3,9 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import type { Tables } from "@/integrations/supabase/types";
 
-interface Doctor {
-  id: string;
-  name: string;
-  degree: string;
-  designation?: string;
-  experience?: string;
-  availability_date?: string;
-  start_time?: string;
-  end_time?: string;
-  break_start?: string;
-  break_end?: string;
-  patient_limit?: number;
-}
+type Doctor = Tables<'doctors'>;
 
 interface DoctorCardProps {
   doctor: Doctor;

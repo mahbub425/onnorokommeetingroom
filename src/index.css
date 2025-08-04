@@ -2,41 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Medical & Healthcare Design System */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Bengali:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Core Healthcare Color Palette */
+    --background: 210 20% 98%;
+    --foreground: 215 25% 27%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 25% 27%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 215 25% 27%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Medical Blue Theme */
+    --primary: 210 100% 56%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 210 100% 65%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Soft Medical Green */
+    --secondary: 155 100% 94%;
+    --secondary-foreground: 155 100% 26%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 215 25% 27%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 210 100% 56%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    /* Medical Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(210 100% 56%), hsl(210 100% 65%));
+    --gradient-medical: linear-gradient(135deg, hsl(210 100% 56%), hsl(155 100% 45%));
+    --gradient-subtle: linear-gradient(180deg, hsl(210 20% 98%), hsl(210 30% 96%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 30% 98%));
+
+    /* Medical Shadows */
+    --shadow-soft: 0 4px 20px -2px hsl(210 100% 56% / 0.1);
+    --shadow-medium: 0 8px 30px -4px hsl(210 100% 56% / 0.15);
+    --shadow-strong: 0 20px 40px -8px hsl(210 100% 56% / 0.2);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Healthcare Status Colors */
+    --success: 155 100% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 48 100% 67%;
+    --warning-foreground: 48 100% 20%;
+    --error: 0 84% 60%;
+    --error-foreground: 0 0% 100%;
 
     --sidebar-background: 0 0% 98%;
 
@@ -100,6 +126,46 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body;
+    background: var(--gradient-subtle);
+    min-height: 100vh;
+  }
+
+  /* Typography */
+  .font-body {
+    font-family: 'Inter', 'Noto Sans Bengali', system-ui, sans-serif;
+  }
+
+  .font-bengali {
+    font-family: 'Noto Sans Bengali', 'Inter', system-ui, sans-serif;
+  }
+
+  /* Medical Component Styles */
+  .medical-card {
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-soft);
+    transition: var(--transition-smooth);
+  }
+
+  .medical-card:hover {
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-2px);
+  }
+
+  .medical-gradient {
+    background: var(--gradient-medical);
+  }
+
+  .medical-shadow {
+    box-shadow: var(--shadow-soft);
+  }
+
+  /* Animation Classes */
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+
+  .transition-bounce {
+    transition: var(--transition-bounce);
   }
 }

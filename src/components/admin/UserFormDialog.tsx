@@ -29,7 +29,7 @@ const formSchema = z.object({
   designation: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters").optional(), // Optional for edit, required for add
 }).superRefine((data, ctx) => {
-  if (!data.password && !ctx.path.includes('password') && !data.name) { // Check if it's an add operation and password is missing
+  if (!data.password && !data.name) { // Check if it's an add operation and password is missing
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Password is required for new users",
@@ -83,29 +83,29 @@ const UserFormDialog: React.FC<UserFormDialogProps> = ({ open, onOpenChange, use
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
-      // Check for unique PIN and Email before attempting signup/update
-      const { data: existingProfiles, error: profileCheckError } = await supabase
-        .from('profiles')
-        .select('id, pin, email')
-        .or(`pin.eq.${values.pin},email.eq.${values.email}`);
-
-      if (profileCheckError) throw profileCheckError;
-
-      if (existingProfiles && existingProfiles.length > 0) {
-        if (existingProfiles.some(p => p.pin === values.pin && p.id !== user?.id)) {
-          form.setError("pin", { type: "manual", message: "PIN already exists" });
-        }
-        if (existingProfiles.some(p => p.email === values.email && p.id !== user?.id)) {
-          form.setError("email", { type: "manual", message: "Email already exists" });
-        }
-        if (form.formState.errors.pin || form.formState.errors.email) {
-          setIsSubmitting(false);
-          return;
-        }
-      }
-
       if (user) {
         // Edit existing user
+        // Check for unique PIN and Email before attempting update
+        const { data: existingProfiles, error: profileCheckError } = await supabase
+          .from('profiles')
+          .select('id, pin, email')
+          .or(`pin.eq.${values.pin},email.eq.${values.email}`);
+
+        if (profileCheckError) throw profileCheckError;
+
+        if (existingProfiles && existingProfiles.length > 0) {
+          if (existingProfiles.some(p => p.pin === values.pin && p.id !== user?.id)) {
+            form.setError("pin", { type: "manual", message: "PIN already exists" });
+          }
+          if (existingProfiles.some(p => p.email === values.email && p.id !== user?.id)) {
+            form.setError("email", { type: "manual", message: "Email already exists" });
+          }
+          if (form.formState.errors.pin || form.formState.errors.email) {
+            setIsSubmitting(false);
+            return;
+          }
+        }
+
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -138,35 +138,44 @@ const UserFormDialog: React.FC<UserFormDialogProps> = ({ open, onOpenChange, use
         }
 
       } else {
-        // Add new user
+        // Add new user via Edge Function
         if (!values.password) {
           form.setError("password", { type: "manual", message: "Password is required for new users" });
           setIsSubmitting(false);
           return;
         }
 
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: values.email,
-          password: values.password,
-          options: {
-            data: {
+        const { data, error: edgeFunctionError } = await supabase.functions.invoke(
+          'create-user-by-admin',
+          {
+            body: JSON.stringify({
+              email: values.email,
+              password: values.password,
               name: values.name,
               pin: values.pin,
-              phone: "+880" + values.phone,
+              phone: values.phone, // Pass without +880, let edge function add it
               department: values.department,
               designation: values.designation,
-              role: 'user', // Default role for new users added by admin
-              status: 'active', // Default status
-            },
-          },
-        });
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
 
-        if (signUpError) throw signUpError;
-        if (!data.user) throw new Error("User creation failed, no user data returned.");
-
-        // The handle_new_user trigger should handle profile creation,
-        // but if it doesn't, you might need a direct insert here.
-        // For now, assuming trigger works.
+        if (edgeFunctionError) {
+          // Handle specific error messages from the edge function
+          if (edgeFunctionError.message.includes("PIN already exists")) {
+            form.setError("pin", { type: "manual", message: "PIN already exists" });
+          } else if (edgeFunctionError.message.includes("Email already exists")) {
+            form.setError("email", { type: "manual", message: "Email already exists" });
+          } else {
+            throw edgeFunctionError;
+          }
+        } else if (data) {
+          // Success
+          console.log("User created via Edge Function:", data);
+        } else {
+          throw new Error("User creation failed, no data returned from Edge Function.");
+        }
       }
 
       onSaveSuccess();

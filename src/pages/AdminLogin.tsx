@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast"; // Corrected syntax
 import { MadeWithDyad } from "@/components/made-with-dyad";
+import { useSession } from "@/components/SessionProvider"; // Import useSession
 
 const formSchema = z.object({
   email: z.string().min(1, "Email is required").email("Invalid email format"),
@@ -19,6 +20,14 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { session, isAdmin, isLoading } = useSession(); // Use session context
+
+  // Redirect if already logged in as admin
+  useEffect(() => {
+    if (!isLoading && session && isAdmin) {
+      navigate("/admin-dashboard");
+    }
+  }, [isLoading, session, isAdmin, navigate]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -80,6 +89,16 @@ const AdminLogin = () => {
       setIsSubmitting(false);
     }
   };
+
+  // If loading session or already an admin, don't show the login form
+  if (isLoading || (session && isAdmin)) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        <p className="text-xl">Loading...</p>
+        <MadeWithDyad />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">

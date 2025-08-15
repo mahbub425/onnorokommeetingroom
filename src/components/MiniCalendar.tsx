@@ -13,9 +13,8 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ selected, onSelect, classNa
       selected={selected}
       onSelect={onSelect}
       className={cn(
-        "rounded-md border shadow",
         "mx-auto", // Center on all screens
-        "w-[90vw] sm:w-[80vw] md:w-full", // Mobile: 90vw, Tablet: 80vw, Desktop: full width of parent (sidebar)
+        "w-full", // Take full width of parent (sidebar)
         "max-w-[315px]", // Max width for desktop
         "aspect-[315/476]", // Maintain aspect ratio (width:height)
         "overflow-hidden", // Hide any overflow if content doesn't perfectly scale
@@ -23,18 +22,18 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ selected, onSelect, classNa
       )}
       classNames={{
         // Adjust internal calendar elements to fit better within the constrained aspect ratio
-        caption: "flex justify-center pt-1 relative items-center text-[0.8rem]",
-        caption_label: "text-[0.8rem] font-medium",
+        caption: "flex justify-center pt-1 relative items-center text-xs", // Smaller text
+        caption_label: "text-xs font-medium", // Smaller text
         nav_button: "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100",
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full h-full border-collapse space-y-1",
         head_row: "flex",
-        head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.7rem]",
+        head_cell: "text-muted-foreground rounded-md w-full font-normal text-xs", // Smaller text
         row: "flex w-full mt-2",
-        cell: "h-8 w-full text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-range-start)]:rounded-l-md [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+        cell: "w-full text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-range-start)]:rounded-l-md [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20", // Removed h-8
         day: cn(
-          "h-8 w-full p-0 font-normal aria-selected:opacity-100 text-[0.8rem]"
+          "w-full py-1 font-normal aria-selected:opacity-100 text-xs" // Removed h-8, added py-1, smaller text
         ),
         day_range_end: "day-range-end",
         day_selected:

@@ -20,7 +20,7 @@ import WeeklyRoomDetailsDialog from "@/components/WeeklyRoomDetailsDialog";
 import { Room, Booking } from "@/types/database";
 import BookingFormDialog from "@/components/BookingFormDialog";
 import BookingDetailsDialog from "@/components/BookingDetailsDialog";
-import MiniCalendar from "@/components/MiniCalendar"; // Import the new MiniCalendar component
+import MiniCalendar from "@/components/MiniCalendar";
 
 const UserDashboard = () => {
   const { session, isAdmin, isLoading } = useSession();
@@ -314,10 +314,10 @@ const UserDashboard = () => {
       {/* Main Content Area */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Left Sidebar */}
-        <div className="w-full md:w-[17%] flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 overflow-y-auto">
+        <div className="w-full md:w-1/5 flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 overflow-y-auto">
           <h3 className="text-lg font-semibold">Calendar</h3>
           <MiniCalendar
-            mode="single" // Added mode prop
+            mode="single"
             selected={selectedDate}
             onSelect={setSelectedDate}
           />
@@ -337,7 +337,7 @@ const UserDashboard = () => {
         </div>
 
         {/* Right Content Area (Main Schedule View) */}
-        <div className="w-full md:w-[83%] p-4 overflow-auto">
+        <div className="w-full md:w-4/5 p-4 overflow-auto">
           {layout === "daily" ? (
             <DailyScheduleGrid
               rooms={rooms}

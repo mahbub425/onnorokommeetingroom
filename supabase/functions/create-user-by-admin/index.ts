@@ -17,6 +17,7 @@ serve(async (req: Request) => {
     const { email, password, name, pin, phone, department, designation } = await req.json();
 
     if (!email || !password || !name || !pin || !phone) {
+      console.error("Validation Error: Missing required user data.");
       return new Response(JSON.stringify({ error: 'Missing required user data.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -43,18 +44,23 @@ serve(async (req: Request) => {
       .or(`pin.eq.${pin},email.eq.${email}`);
 
     if (profileCheckError) {
-      console.error("Error checking existing profiles:", profileCheckError);
-      throw new Error(`Database check failed: ${profileCheckError.message}`);
+      console.error("Database Error (profileCheckError):", profileCheckError.message);
+      return new Response(JSON.stringify({ error: `Database check failed: ${profileCheckError.message}` }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500, // Internal Server Error for database issues
+      });
     }
 
     if (existingProfiles && existingProfiles.length > 0) {
       if (existingProfiles.some((p: { id: string; pin: string; email: string; }) => p.pin === pin)) {
+        console.warn(`Conflict: PIN '${pin}' already exists.`);
         return new Response(JSON.stringify({ error: "PIN already exists." }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 409, // Conflict
         });
       }
       if (existingProfiles.some((p: { id: string; pin: string; email: string; }) => p.email === email)) {
+        console.warn(`Conflict: Email '${email}' already exists.`);
         return new Response(JSON.stringify({ error: "Email already exists." }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 409, // Conflict
@@ -65,25 +71,27 @@ serve(async (req: Request) => {
     const { data: user, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Automatically confirm email for admin-created users
+      email_confirm: true,
       user_metadata: {
         name,
         pin,
-        phone: "+880" + phone, // Prepend +880
+        phone: "+880" + phone,
         department: department || null,
         designation: designation || null,
-        role: 'user', // Default role for new users added by admin
-        status: 'active', // Default status
+        role: 'user',
+        status: 'active',
       },
     });
 
     if (createUserError) {
-      console.error("Error creating user via admin API:", createUserError);
-      throw new Error(`User creation failed: ${createUserError.message}`);
+      console.error("Supabase Auth Error (createUserError):", createUserError.message);
+      // Supabase auth errors can sometimes be quite specific and should be passed directly
+      return new Response(JSON.stringify({ error: `User creation failed: ${createUserError.message}` }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, // Bad Request for auth-related validation errors
+      });
     }
 
-    // The handle_new_user trigger should automatically create the profile entry.
-    // No need for explicit profile insert here if the trigger is working.
     console.log("User created successfully:", user.user?.id);
 
     return new Response(JSON.stringify({ message: 'User created successfully.', userId: user.user?.id }), {
@@ -92,8 +100,8 @@ serve(async (req: Request) => {
     });
 
   } catch (error: any) {
-    console.error("Edge Function caught an unexpected error:", error);
-    return new Response(JSON.stringify({ error: error.message || "An unexpected error occurred in the Edge Function." }), {
+    console.error("Unhandled Edge Function Error:", error);
+    return new Response(JSON.stringify({ error: error.message || "An unexpected internal server error occurred." }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });

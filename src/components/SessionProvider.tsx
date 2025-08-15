@@ -20,23 +20,28 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const location = useLocation();
 
   useEffect(() => {
-    const handleAuthStateChange = async (_event: string, currentSession: Session | null) => {
+    const handleAuthStateChange = (_event: string, currentSession: Session | null) => {
       setSession(currentSession);
 
       let userRole = 'user'; // Default role
       if (currentSession) {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', currentSession.user.id)
-          .single();
+        // Defer database call to prevent deadlock
+        setTimeout(async () => {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', currentSession.user.id)
+            .single();
 
-        if (profile && !error) {
-          userRole = profile.role;
-        }
+          if (profile && !error) {
+            userRole = profile.role;
+          }
+          
+          setIsAdmin(userRole === 'admin');
+        }, 0);
+      } else {
+        setIsAdmin(false);
       }
-      
-      setIsAdmin(userRole === 'admin'); // Admin if user has 'admin' role in profiles
 
       setIsLoading(false);
 

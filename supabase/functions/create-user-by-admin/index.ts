@@ -13,6 +13,16 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // TEMPORARY: This Edge Function is currently disabled for maintenance.
+  // To re-enable, remove or comment out this return statement and uncomment the original logic below.
+  console.warn("User creation Edge Function is currently disabled for maintenance.");
+  return new Response(JSON.stringify({ error: 'User creation function is temporarily disabled for maintenance. Please try again later or contact support.' }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: 503, // Service Unavailable
+  });
+
+  /*
+  // Original logic (uncomment this section to re-enable the function)
   try {
     const { email, password, name, pin, phone, department, designation } = await req.json();
 
@@ -85,7 +95,6 @@ serve(async (req: Request) => {
 
     if (createUserError) {
       console.error("Supabase Auth Error (createUserError):", createUserError.message);
-      // Supabase auth errors can sometimes be quite specific and should be passed directly
       return new Response(JSON.stringify({ error: `User creation failed: ${createUserError.message}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400, // Bad Request for auth-related validation errors
@@ -106,4 +115,5 @@ serve(async (req: Request) => {
       status: 500,
     });
   }
+  */
 });

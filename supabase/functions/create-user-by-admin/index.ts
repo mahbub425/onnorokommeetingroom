@@ -13,12 +13,31 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Original logic (uncomment this section to re-enable the function)
+  let requestBody;
   try {
-    const { email, password, name, pin, phone, department, designation } = await req.json();
+    // Attempt to read the body as text first to debug if it's empty or malformed
+    const bodyText = await req.text();
+    if (!bodyText) {
+      console.error("Received empty request body despite Content-Type: application/json.");
+      return new Response(JSON.stringify({ error: 'Request body is empty. Please ensure all required fields are sent.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, // Bad Request
+      });
+    }
+    requestBody = JSON.parse(bodyText); // Manually parse the text
+  } catch (parseError: any) {
+    console.error("JSON parsing error:", parseError.message);
+    return new Response(JSON.stringify({ error: `Invalid JSON in request body: ${parseError.message}` }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400, // Bad Request
+    });
+  }
+
+  try {
+    const { email, password, name, pin, phone, department, designation } = requestBody;
 
     if (!email || !password || !name || !pin || !phone) {
-      console.error("Validation Error: Missing required user data.");
+      console.error("Validation Error: Missing required user data in parsed JSON.");
       return new Response(JSON.stringify({ error: 'Missing required user data.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -100,7 +119,7 @@ serve(async (req: Request) => {
     });
 
   } catch (error: any) {
-    console.error("Unhandled Edge Function Error:", error);
+    console.error("Unhandled Edge Function Error (after parsing):", error);
     return new Response(JSON.stringify({ error: error.message || "An unexpected internal server error occurred." }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

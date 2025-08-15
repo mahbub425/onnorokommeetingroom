@@ -313,16 +313,18 @@ const UserDashboard = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Left Sidebar */}
-        <div className="w-full sm:w-80 lg:w-96 xl:w-[400px] 2xl:w-[450px] p-4 border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 min-w-[300px]">
+        <div className="w-full md:w-[17%] flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4">
           <h3 className="text-lg font-semibold">Calendar</h3>
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            className="rounded-md border shadow w-full max-w-full"
-          />
+          <div className="mx-auto max-w-xs">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              className="rounded-md border shadow"
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="layout-filter">Layout Filter</Label>
             <Select value={layout} onValueChange={(value: "daily" | "weekly") => saveUserPreference(value)}>
@@ -339,7 +341,7 @@ const UserDashboard = () => {
         </div>
 
         {/* Right Content Area (Main Schedule View) */}
-        <div className="flex-1 p-4 overflow-auto">
+        <div className="w-full md:w-[83%] p-4 overflow-auto">
           {/* Removed the duplicate header from here */}
           {layout === "daily" ? (
             <DailyScheduleGrid

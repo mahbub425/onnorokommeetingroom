@@ -224,6 +224,9 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
             start_time: values.startTime,
             end_time: values.endTime,
             remarks: values.remarks,
+            repeat_type: values.repeatType,
+            repeat_end_date: values.endDate ? format(values.endDate, "yyyy-MM-dd") : null,
+            is_recurring: values.repeatType !== "no_repeat",
           })
           .select()
           .single();

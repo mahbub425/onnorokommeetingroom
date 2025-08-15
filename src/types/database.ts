@@ -20,6 +20,10 @@ export interface Booking {
   start_time: string; // HH:MM:SS format
   end_time: string; // HH:MM:SS format
   remarks: string | null;
+  repeat_type: 'no_repeat' | 'daily' | 'weekly' | 'monthly' | 'custom';
+  repeat_end_date: string | null;
+  is_recurring: boolean;
+  parent_booking_id: string | null;
   created_at: string;
   updated_at: string;
   // Optionally, add user and room details if joined

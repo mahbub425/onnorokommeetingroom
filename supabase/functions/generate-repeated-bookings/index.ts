@@ -63,13 +63,13 @@ serve(async (req: Request) => {
       let shouldBook = true;
       let skipReason = "";
 
-      if (repeatType === 'daily' || repeatType === 'custom') { // 'custom' behaves like daily until end date
+      if (repeatType === 'daily' || repeatType === 'custom') {
         const dayOfWeek = getDay(currentDate); // Sunday - 0, Monday - 1, ..., Saturday - 6
 
         // Skip every Friday (dayOfWeek === 5)
         if (dayOfWeek === 5) {
           shouldBook = false;
-          skipReason = "It's a Friday.";
+          skipReason = "এটি শুক্রবার।";
         } else if (dayOfWeek === 6) { // Saturday
           // Calculate which Saturday of the month it is
           let saturdayCount = 0;
@@ -83,7 +83,7 @@ serve(async (req: Request) => {
           // Check if it's the 1st, 3rd, or 4th Saturday
           if (saturdayCount === 1 || saturdayCount === 3) {
             shouldBook = false;
-            skipReason = `It's the ${saturdayCount}st/rd Saturday of the month.`;
+            skipReason = `এটি মাসের ${saturdayCount === 1 ? 'প্রথম' : 'তৃতীয়'} শনিবার।`;
           } else if (saturdayCount === 4) {
             // Check if there are at least 4 Saturdays in the month
             const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
@@ -96,7 +96,7 @@ serve(async (req: Request) => {
             }
             if (totalSaturdaysInMonth >= 4) {
               shouldBook = false;
-              skipReason = "It's the 4th Saturday of the month.";
+              skipReason = "এটি মাসের চতুর্থ শনিবার।";
             }
           }
         }
@@ -137,6 +137,9 @@ serve(async (req: Request) => {
           start_time: initialBooking.start_time,
           end_time: initialBooking.end_time,
           remarks: initialBooking.remarks,
+          repeat_type: 'no_repeat', // Child bookings don't repeat
+          is_recurring: true,
+          parent_booking_id: initialBooking.id,
         });
         console.log(`Added booking for ${proposedBookingDate} to insertion list.`);
       } else {

@@ -162,18 +162,19 @@ const UserFormDialog: React.FC<UserFormDialogProps> = ({ open, onOpenChange, use
         );
 
         if (edgeFunctionError) {
-          // Handle specific error messages from the edge function
-          if (edgeFunctionError.message.includes("PIN already exists")) {
-            form.setError("pin", { type: "manual", message: "PIN already exists" });
-          } else if (edgeFunctionError.message.includes("Email already exists")) {
-            form.setError("email", { type: "manual", message: "Email already exists" });
-          } else {
-            throw edgeFunctionError;
-          }
+          // Directly use the error message from the Edge Function
+          // The Edge Function is designed to return specific error messages in its response body,
+          // which supabase.functions.invoke wraps into the error.message property.
+          form.setError("root.serverError", {
+            message: edgeFunctionError.message || "An unexpected error occurred during user creation.",
+          });
+          setIsSubmitting(false); // Ensure submitting state is reset on error
+          return; // Stop further execution
         } else if (data) {
           // Success
           console.log("User created via Edge Function:", data);
         } else {
+          // This case should ideally not be reached if the Edge Function always returns data or an error.
           throw new Error("User creation failed, no data returned from Edge Function.");
         }
       }

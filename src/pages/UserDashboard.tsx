@@ -315,14 +315,16 @@ const UserDashboard = () => {
       {/* Main Content Area */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Left Sidebar */}
-        <div className="w-full md:w-[17%] flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4">
+        {/* Adjusted width to md:w-1/5 (20%) and added overflow-y-auto for scrolling */}
+        <div className="w-full md:w-1/5 flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 overflow-y-auto">
           <h3 className="text-lg font-semibold">Calendar</h3>
-          <div className="mx-auto max-w-xs">
+          {/* Removed mx-auto max-w-xs and added w-full to make calendar responsive within sidebar */}
+          <div className="w-full">
             <Calendar
               mode="single"
               selected={selectedDate}
               onSelect={setSelectedDate}
-              className="rounded-md border shadow"
+              className="rounded-md border shadow w-full"
             />
           </div>
           <div className="space-y-2">
@@ -341,8 +343,8 @@ const UserDashboard = () => {
         </div>
 
         {/* Right Content Area (Main Schedule View) */}
-        <div className="w-full md:w-[83%] p-4 overflow-auto">
-          {/* Removed the duplicate header from here */}
+        {/* Adjusted width to md:w-4/5 (80%) */}
+        <div className="w-full md:w-4/5 p-4 overflow-auto">
           {layout === "daily" ? (
             <DailyScheduleGrid
               rooms={rooms}
@@ -358,7 +360,7 @@ const UserDashboard = () => {
               selectedDate={selectedDate || new Date()}
               onViewRoomDetails={handleViewRoomDetailsForWeekly}
               onSelectDate={setSelectedDate}
-              onViewBooking={handleViewBooking} // Pass onViewBooking to WeeklyScheduleGrid
+              onViewBooking={handleViewBooking}
             />
           )}
         </div>
@@ -417,7 +419,7 @@ const UserDashboard = () => {
           onOpenChange={setWeeklyRoomDetailsOpen}
           room={selectedRoomForWeeklyDetails}
           initialDate={selectedDateForWeeklyDetails}
-          dailyBookingsForSelectedRoomAndDate={dailyBookingsForWeeklyDetails} // Pass the filtered bookings
+          dailyBookingsForSelectedRoomAndDate={dailyBookingsForWeeklyDetails}
           onBookSlot={handleBookSlot}
           onViewBooking={handleViewBooking}
         />

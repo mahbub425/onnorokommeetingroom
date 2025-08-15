@@ -4,10 +4,9 @@ import { useSession } from "@/components/SessionProvider";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/auth";
 import { useNavigate } from "react-router-dom";
-import { Share2, HelpCircle, User as UserIcon } from "lucide-react"; // Removed CalendarIcon
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"; // Removed Popover imports
-import { Calendar } from "@/components/ui/calendar";
-import { format, startOfWeek, addDays } from "date-fns"; // Removed parseISO
+import { Share2, HelpCircle, User as UserIcon } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { format, startOfWeek, addDays } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import ProfileView from "@/components/ProfileView";
@@ -18,9 +17,10 @@ import RoomList from "@/components/RoomList";
 import DailyScheduleGrid from "@/components/DailyScheduleGrid";
 import WeeklyScheduleGrid from "@/components/WeeklyScheduleGrid";
 import WeeklyRoomDetailsDialog from "@/components/WeeklyRoomDetailsDialog";
-import { Room, Booking } from "@/types/database"; // Removed UserPreference
+import { Room, Booking } from "@/types/database";
 import BookingFormDialog from "@/components/BookingFormDialog";
 import BookingDetailsDialog from "@/components/BookingDetailsDialog";
+import MiniCalendar from "@/components/MiniCalendar"; // Import the new MiniCalendar component
 
 const UserDashboard = () => {
   const { session, isAdmin, isLoading } = useSession();
@@ -42,7 +42,7 @@ const UserDashboard = () => {
   const [weeklyRoomDetailsOpen, setWeeklyRoomDetailsOpen] = useState(false);
   const [selectedRoomForWeeklyDetails, setSelectedRoomForWeeklyDetails] = useState<Room | null>(null);
   const [selectedDateForWeeklyDetails, setSelectedDateForWeeklyDetails] = useState<Date | undefined>(undefined);
-  const [dailyBookingsForWeeklyDetails, setDailyBookingsForWeeklyDetails] = useState<Booking[]>([]); // New state for passing daily bookings
+  const [dailyBookingsForWeeklyDetails, setDailyBookingsForWeeklyDetails] = useState<Booking[]>([]);
   const [newBookingStartTime, setNewBookingStartTime] = useState<string | undefined>(undefined);
   const [newBookingEndTime, setNewBookingEndTime] = useState<string | undefined>(undefined);
 
@@ -81,7 +81,7 @@ const UserDashboard = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedDate, layout, session]); // Dependencies for the effect
+  }, [selectedDate, layout, session]);
 
   const fetchUserProfile = async () => {
     if (!session?.user?.id) return;
@@ -183,13 +183,12 @@ const UserDashboard = () => {
         variant: "destructive",
       });
     } else {
-      // Flatten the data to include user and room details directly in booking object
       const bookingsWithDetails = data.map(booking => ({
         ...booking,
         user_name: booking.profiles?.name,
         user_pin: booking.profiles?.pin,
         user_department: booking.profiles?.department,
-        room_name: booking.rooms?.name, // Add room name from joined table
+        room_name: booking.rooms?.name,
       })) as Booking[];
       setBookings(bookingsWithDetails || []);
     }
@@ -221,11 +220,11 @@ const UserDashboard = () => {
     const room = rooms.find(r => r.id === roomId);
     if (room) {
       setSelectedRoomForBooking(room);
-      setEditingBooking(null); // Ensure we are in create mode
-      setNewBookingStartTime(startTime); // Store for new booking
-      setNewBookingEndTime(endTime);     // Store for new booking
+      setEditingBooking(null);
+      setNewBookingStartTime(startTime);
+      setNewBookingEndTime(endTime);
       setBookingFormOpen(true);
-      setSelectedDate(date); // Ensure the form opens with the correct date
+      setSelectedDate(date);
     }
   };
 
@@ -237,21 +236,21 @@ const UserDashboard = () => {
   const handleEditBooking = (booking: Booking) => {
     setEditingBooking(booking);
     setSelectedRoomForBooking(rooms.find(r => r.id === booking.room_id) || null);
-    setBookingDetailsOpen(false); // Close details dialog
-    setBookingFormOpen(true); // Open form in edit mode
+    setBookingDetailsOpen(false);
+    setBookingFormOpen(true);
   };
 
   const handleBookingOperationSuccess = () => {
-    fetchBookings(selectedDate || new Date(), layout); // Refresh bookings for the current date/week
-    setBookingFormOpen(false); // Close form after success
-    setBookingDetailsOpen(false); // Close details after success
-    setWeeklyRoomDetailsOpen(false); // Close weekly room details after success
+    fetchBookings(selectedDate || new Date(), layout);
+    setBookingFormOpen(false);
+    setBookingDetailsOpen(false);
+    setWeeklyRoomDetailsOpen(false);
   };
 
   const handleViewRoomDetailsForWeekly = (room: Room, date: Date, dailyBookings: Booking[]) => {
     setSelectedRoomForWeeklyDetails(room);
     setSelectedDateForWeeklyDetails(date);
-    setDailyBookingsForWeeklyDetails(dailyBookings); // Set the filtered daily bookings
+    setDailyBookingsForWeeklyDetails(dailyBookings);
     setWeeklyRoomDetailsOpen(true);
   };
 
@@ -315,18 +314,13 @@ const UserDashboard = () => {
       {/* Main Content Area */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Left Sidebar */}
-        {/* Adjusted width to md:w-1/5 (20%) and added overflow-y-auto for scrolling */}
-        <div className="w-full md:w-1/5 flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 overflow-y-auto">
+        <div className="w-full md:w-[17%] flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 overflow-y-auto">
           <h3 className="text-lg font-semibold">Calendar</h3>
-          {/* Removed mx-auto max-w-xs and added w-full to make calendar responsive within sidebar */}
-          <div className="w-full">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              className="rounded-md border shadow w-full"
-            />
-          </div>
+          <MiniCalendar
+            mode="single" // Added mode prop
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+          />
           <div className="space-y-2">
             <Label htmlFor="layout-filter">Layout Filter</Label>
             <Select value={layout} onValueChange={(value: "daily" | "weekly") => saveUserPreference(value)}>
@@ -343,8 +337,7 @@ const UserDashboard = () => {
         </div>
 
         {/* Right Content Area (Main Schedule View) */}
-        {/* Adjusted width to md:w-4/5 (80%) */}
-        <div className="w-full md:w-4/5 p-4 overflow-auto">
+        <div className="w-full md:w-[83%] p-4 overflow-auto">
           {layout === "daily" ? (
             <DailyScheduleGrid
               rooms={rooms}

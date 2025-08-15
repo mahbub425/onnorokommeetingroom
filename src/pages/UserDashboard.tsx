@@ -315,7 +315,7 @@ const UserDashboard = () => {
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Left Sidebar */}
         <div className="w-full md:w-1/5 flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 overflow-y-auto">
-          <h3 className="text-lg font-semibold">Calendar</h3>
+          {/* Removed <h3 className="text-lg font-semibold">Calendar</h3> */}
           <MiniCalendar
             mode="single"
             selected={selectedDate}

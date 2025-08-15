@@ -16,9 +16,7 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ selected, onSelect, classNa
         "mx-auto", // Center on all screens
         "w-full", // Take full width of parent (sidebar)
         "max-w-[315px]", // Max width for desktop
-        "aspect-[315/476]", // Maintain aspect ratio (width:height)
-        "overflow-hidden", // Hide any overflow if content doesn't perfectly scale
-        className
+        className // Removed aspect-[315/476] and overflow-hidden
       )}
       classNames={{
         // Adjust internal calendar elements to fit better within the constrained aspect ratio
@@ -28,12 +26,12 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ selected, onSelect, classNa
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full h-full border-collapse space-y-1",
-        head_row: "flex gap-x-1", // Added gap-x-1
+        head_row: "flex gap-x-1",
         head_cell: "text-muted-foreground rounded-md w-full font-normal text-xs uppercase",
-        row: "flex w-full mt-2 gap-x-1", // Added gap-x-1
+        row: "flex w-full mt-2 gap-x-1",
         cell: "w-full text-center p-0 relative focus-within:relative focus-within:z-20",
         day: cn(
-          "w-full aspect-square flex items-center justify-center p-1 font-normal aria-selected:opacity-100 text-sm rounded-full", // Changed p-0 to p-1
+          "w-full aspect-square flex items-center justify-center p-1 font-normal aria-selected:opacity-100 text-sm rounded-full",
           "hover:bg-accent hover:text-accent-foreground"
         ),
         day_range_end: "day-range-end",

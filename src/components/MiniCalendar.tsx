@@ -28,13 +28,13 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ selected, onSelect, classNa
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full h-full border-collapse space-y-1",
-        head_row: "flex",
-        head_cell: "text-muted-foreground rounded-md w-full font-normal text-xs uppercase", // Added uppercase
-        row: "flex w-full mt-2",
+        head_row: "flex gap-x-1", // Added gap-x-1
+        head_cell: "text-muted-foreground rounded-md w-full font-normal text-xs uppercase",
+        row: "flex w-full mt-2 gap-x-1", // Added gap-x-1
         cell: "w-full text-center p-0 relative focus-within:relative focus-within:z-20",
         day: cn(
-          "w-full aspect-square flex items-center justify-center p-0 font-normal aria-selected:opacity-100 text-sm rounded-full", // Made day element a flexible square, then rounded it. Centered content.
-          "hover:bg-accent hover:text-accent-foreground" // General hover effect
+          "w-full aspect-square flex items-center justify-center p-1 font-normal aria-selected:opacity-100 text-sm rounded-full", // Changed p-0 to p-1
+          "hover:bg-accent hover:text-accent-foreground"
         ),
         day_range_end: "day-range-end",
         day_selected:

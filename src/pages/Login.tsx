@@ -1,133 +1,139 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { supabase } from "@/integrations/supabase/auth";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import Header from "@/components/Header";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/components/ui/use-toast";
+import { MadeWithDyad } from "@/components/made-with-dyad";
+
+const formSchema = z.object({
+  pin: z.string().min(1, "PIN is required"),
+  password: z.string().min(1, "Password is required"),
+  rememberMe: z.boolean().default(false).optional(),
+});
 
 const Login = () => {
-  const [pin, setPin] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      pin: "",
+      password: "",
+      rememberMe: false,
+    },
+  });
 
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true);
     try {
-      // First check if patient exists with this PIN
-      const { data: patient, error: fetchError } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('pin', pin)
-        .maybeSingle();
+      // First, find the user's email using the provided PIN
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('email, status')
+        .eq('pin', values.pin)
+        .single();
 
-      if (fetchError || !patient) {
-        setError("Invalid PIN or password");
-        setLoading(false);
+      if (profileError || !profileData) {
+        toast({
+          title: "Login Error",
+          description: "Invalid PIN or password.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
         return;
       }
 
-      // Sign in with email (using PIN as email) and password
-      const email = `${pin}@patient.local`; // Convert PIN to email format
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      if (profileData.status === 'blocked') {
+        toast({
+          title: "Login Error",
+          description: "You are blocked by admin. You can’t login now.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      const userEmail = profileData.email;
+
+      // Then, sign in with the retrieved email and password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: values.password,
       });
 
       if (signInError) {
-        setError("Invalid PIN or password");
-        setLoading(false);
-        return;
+        toast({
+          title: "Login Error",
+          description: signInError.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Login Successful",
+          description: "You have been successfully logged in.",
+        });
+        navigate("/");
       }
-
+    } catch (error: any) {
       toast({
-        title: "Login successful",
-        description: "Welcome back!",
+        title: "Login Error",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
       });
-
-      navigate('/patient-dashboard');
-    } catch (error) {
-      console.error('Login error:', error);
-      setError("An error occurred during login");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header showLogin={false} />
-      
-      <main className="container mx-auto px-4 py-8 flex justify-center items-center min-h-[calc(100vh-200px)]">
-        <Card className="w-full max-w-md medical-card">
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">Patient Login</CardTitle>
-            <CardDescription className="text-center">
-              Enter your PIN and password to access your dashboard
-            </CardDescription>
-          </CardHeader>
-          
-          <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="pin">PIN</Label>
-                <Input
-                  id="pin"
-                  type="number"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder="Enter your PIN"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                />
-              </div>
-            </CardContent>
-            
-            <CardFooter className="flex flex-col space-y-4">
-              <Button 
-                type="submit" 
-                className="w-full bg-primary hover:bg-primary-glow text-primary-foreground"
-                disabled={loading}
-              >
-                {loading ? "Logging in..." : "Login"}
-              </Button>
-              
-              <p className="text-sm text-center text-muted-foreground">
-                Don't have an account?{" "}
-                <Link to="/register" className="text-primary hover:underline">
-                  Register here
-                </Link>
-              </p>
-            </CardFooter>
-          </form>
-        </Card>
-      </main>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center mb-2 text-gray-900 dark:text-gray-100">Log in</h2>
+        <p className="text-center text-gray-600 dark:text-gray-400 mb-6">Welcome! Please enter your details.</p>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div>
+            <Label htmlFor="pin">PIN</Label>
+            <Input id="pin" placeholder="Enter PIN" type="text" {...form.register("pin")} autoComplete="username" />
+            {form.formState.errors.pin && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.pin.message}</p>
+            )}
+          </div>
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <Input id="password" placeholder="Enter Password" type="password" {...form.register("password")} autoComplete="current-password" />
+            {form.formState.errors.password && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.password.message}</p>
+            )}
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Checkbox id="rememberMe" checked={form.watch("rememberMe")} onCheckedChange={(checked) => form.setValue("rememberMe", !!checked)} />
+              <Label htmlFor="rememberMe">Remember Password</Label>
+            </div>
+            <Link to="/forgot-password" className="text-blue-600 hover:underline dark:text-blue-400 text-sm">
+              Forgot Password?
+            </Link>
+          </div>
+          <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white" disabled={isSubmitting}>
+            {isSubmitting ? "Logging in..." : "Log in"}
+          </Button>
+        </form>
+        <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
+          Don't have an account?{" "}
+          <Link to="/register" className="text-blue-600 hover:underline dark:text-blue-400">
+            Register here
+          </Link>
+        </p>
+      </div>
+      <MadeWithDyad />
     </div>
   );
 };

@@ -1,243 +1,244 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { supabase } from "@/integrations/supabase/auth";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import Header from "@/components/Header";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
+import { MadeWithDyad } from "@/components/made-with-dyad";
+import { User, Lock, Phone, Mail, Building, Briefcase } from "lucide-react"; // Import icons
+
+const departmentOptions = [
+  "Human Resource Management", "Software Development", "Business Development",
+  "Software Quality Assurance", "Operations & Management", "UI & Graphics Design",
+  "TechCare", "Requirement Analysis & UX Design", "Top Management",
+  "DevOps & Network", "Finance & Accounts", "Internal Audit",
+  "Graphics & Creative", "Organization Development", "IT & Hardware",
+  "Legal & Compliance", "Operations (Asset Management)"
+];
+
+const formSchema = z.object({
+  name: z.string().min(1, "Name is required").regex(/^[a-zA-Z\s]+$/, "Name cannot contain numbers or special characters"),
+  pin: z.string().min(1, "PIN is required").regex(/^\d+$/, "PIN must be numeric").max(9, "PIN must be 9 digits or less"),
+  phone: z.string().min(10, "Phone number must be 10 digits").max(10, "Phone number must be 10 digits").regex(/^[0-9]{10}$/, "Phone number must be numeric and 10 digits long"),
+  email: z.string().min(1, "Email is required").email("Invalid email format"),
+  department: z.string().optional(),
+  designation: z.string().optional(),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Confirm Password is required"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
 
 const Register = () => {
-  const [formData, setFormData] = useState({
-    name: "",
-    pin: "",
-    concern: "",
-    phone: "",
-    password: "",
-    confirmPassword: ""
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const concernOptions = ["OPL", "OG", "Udvash", "Rokomari", "Unmesh", "Uttoron"];
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      pin: "",
+      phone: "", // Default to empty as +880 is prefixed
+      email: "",
+      department: "",
+      designation: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const validateForm = () => {
-    if (!formData.name || !formData.pin || !formData.concern || !formData.phone || !formData.password) {
-      setError("All fields are required");
-      return false;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return false;
-    }
-
-    if (formData.pin.length < 4) {
-      setError("PIN must be at least 4 digits");
-      return false;
-    }
-
-    if (formData.phone.length < 10) {
-      setError("Please enter a valid phone number");
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!validateForm()) return;
-
-    setLoading(true);
-
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true);
     try {
-      // Check if PIN already exists
-      const { data: existingPatient } = await supabase
-        .from('patients')
-        .select('pin')
-        .eq('pin', formData.pin)
-        .maybeSingle();
+      // Check for unique PIN and Email before attempting signup
+      const { data: existingProfiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, pin, email')
+        .or(`pin.eq.${values.pin},email.eq.${values.email}`);
 
-      if (existingPatient) {
-        setError("This PIN is already registered");
-        setLoading(false);
+      if (profileError) throw profileError;
+
+      if (existingProfiles && existingProfiles.length > 0) {
+        if (existingProfiles.some(p => p.pin === values.pin)) {
+          form.setError("pin", { type: "manual", message: "PIN already exists" });
+        }
+        if (existingProfiles.some(p => p.email === values.email)) {
+          form.setError("email", { type: "manual", message: "Email already exists" });
+        }
+        setIsSubmitting(false);
         return;
       }
 
-      // Create auth user with email format (PIN@patient.local)
-      const email = `${formData.pin}@patient.local`;
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password: formData.password,
+      const { data, error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            name: values.name,
+            pin: values.pin,
+            phone: "+880" + values.phone, // Prepend +880 to the phone number
+            department: values.department,
+            designation: values.designation,
+          },
+        },
       });
 
-      if (authError) {
-        setError("Registration failed. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      // Insert patient data with auth user ID
-      const { error: insertError } = await supabase
-        .from('patients')
-        .insert({
-          id: authData.user?.id,
-          name: formData.name,
-          pin: formData.pin,
-          concern: formData.concern,
-          phone: formData.phone,
-          password_hash: formData.password // This will be hashed by the database
+      if (error) {
+        toast({
+          title: "Registration Error",
+          description: error.message,
+          variant: "destructive",
         });
-
-      if (insertError) {
-        setError("Registration failed. Please try again.");
-        setLoading(false);
-        return;
+      } else if (data.user) {
+        toast({
+          title: "Registration Successful",
+          description: "Please check your email to confirm your account, then log in.",
+        });
+        navigate("/login");
+      } else {
+        // This case might happen if email confirmation is required but no user object is returned immediately
+        toast({
+          title: "Registration Successful",
+          description: "Please check your email to confirm your account, then log in.",
+        });
+        navigate("/login");
       }
-
+    } catch (error: any) {
       toast({
-        title: "Registration successful",
-        description: "You can now login with your PIN and password",
+        title: "Registration Error",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
       });
-
-      navigate('/login');
-    } catch (error) {
-      console.error('Registration error:', error);
-      setError("An error occurred during registration");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header showLogin={false} />
-      
-      <main className="container mx-auto px-4 py-8 flex justify-center items-center">
-        <Card className="w-full max-w-md medical-card">
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">Patient Registration</CardTitle>
-            <CardDescription className="text-center">
-              Create your account to book appointments
-            </CardDescription>
-          </CardHeader>
-          
-          <form onSubmit={handleRegister}>
-            <CardContent className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="Enter your full name"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="pin">PIN</Label>
-                <Input
-                  id="pin"
-                  type="number"
-                  value={formData.pin}
-                  onChange={(e) => handleInputChange('pin', e.target.value)}
-                  placeholder="Enter a unique PIN"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="concern">Concern</Label>
-                <Select onValueChange={(value) => handleInputChange('concern', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your concern" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {concernOptions.map((concern) => (
-                      <SelectItem key={concern} value={concern}>
-                        {concern}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  placeholder="Enter your phone number"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  placeholder="Create a password"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                  placeholder="Confirm your password"
-                  required
-                />
-              </div>
-            </CardContent>
-            
-            <CardFooter className="flex flex-col space-y-4">
-              <Button 
-                type="submit" 
-                className="w-full bg-primary hover:bg-primary-glow text-primary-foreground"
-                disabled={loading}
-              >
-                {loading ? "Registering..." : "Register"}
-              </Button>
-              
-              <p className="text-sm text-center text-muted-foreground">
-                Already have an account?{" "}
-                <Link to="/login" className="text-primary hover:underline">
-                  Login here
-                </Link>
-              </p>
-            </CardFooter>
-          </form>
-        </Card>
-      </main>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+      <div className="w-full max-w-2xl bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+        <h2 className="text-3xl font-bold text-center mb-2 text-gray-900 dark:text-gray-100">Register</h2>
+        <p className="text-center text-gray-600 dark:text-gray-400 mb-6">Create your account to start booking meetings</p>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="col-span-1">
+            <Label htmlFor="name" className="flex items-center mb-1">
+              <User className="inline-block mr-2 h-4 w-4" />
+              Full Name
+            </Label>
+            <Input id="name" placeholder="Enter your full name" {...form.register("name")} />
+            {form.formState.errors.name && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.name.message}</p>
+            )}
+          </div>
+          <div className="col-span-1">
+            <Label htmlFor="pin" className="flex items-center mb-1">
+              <Lock className="inline-block mr-2 h-4 w-4" />
+              PIN
+            </Label>
+            <Input id="pin" type="text" placeholder="Enter unique PIN" {...form.register("pin")} />
+            {form.formState.errors.pin && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.pin.message}</p>
+            )}
+          </div>
+          <div className="col-span-1">
+            <Label htmlFor="phone" className="flex items-center mb-1">
+              <Phone className="inline-block mr-2 h-4 w-4" />
+              Phone Number
+            </Label>
+            <div className="flex">
+              <span className="flex items-center px-3 border border-r-0 rounded-l-md bg-gray-50 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                +880
+              </span>
+              <Input
+                id="phone"
+                type="text"
+                placeholder="1712345678"
+                {...form.register("phone")}
+                className="rounded-l-none"
+              />
+            </div>
+            {form.formState.errors.phone && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.phone.message}</p>
+            )}
+          </div>
+          <div className="col-span-1">
+            <Label htmlFor="email" className="flex items-center mb-1">
+              <Mail className="inline-block mr-2 h-4 w-4" />
+              Email
+            </Label>
+            <Input id="email" type="email" placeholder="your.email@company.com" {...form.register("email")} />
+            {form.formState.errors.email && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.email.message}</p>
+            )}
+          </div>
+          <div className="col-span-1">
+            <Label htmlFor="department" className="flex items-center mb-1">
+              <Building className="inline-block mr-2 h-4 w-4" />
+              Department
+            </Label>
+            <Select onValueChange={(value) => form.setValue("department", value)} value={form.watch("department")}>
+              <SelectTrigger id="department">
+                <SelectValue placeholder="Select a department" />
+              </SelectTrigger>
+              <SelectContent>
+                {departmentOptions.map((dept) => (
+                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {form.formState.errors.department && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.department.message}</p>
+            )}
+          </div>
+          <div className="col-span-1">
+            <Label htmlFor="designation" className="flex items-center mb-1">
+              <Briefcase className="inline-block mr-2 h-4 w-4" />
+              Designation
+            </Label>
+            <Input id="designation" type="text" placeholder="Your job title" {...form.register("designation")} />
+            {form.formState.errors.designation && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.designation.message}</p>
+            )}
+          </div>
+          <div className="col-span-1">
+            <Label htmlFor="password" className="flex items-center mb-1">
+              <Lock className="inline-block mr-2 h-4 w-4" />
+              Password
+            </Label>
+            <Input id="password" type="password" placeholder="Strong password" {...form.register("password")} />
+            {form.formState.errors.password && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.password.message}</p>
+            )}
+          </div>
+          <div className="col-span-1">
+            <Label htmlFor="confirmPassword" className="flex items-center mb-1">
+              <Lock className="inline-block mr-2 h-4 w-4" />
+              Confirm Password
+            </Label>
+            <Input id="confirmPassword" type="password" placeholder="Confirm password" {...form.register("confirmPassword")} />
+            {form.formState.errors.confirmPassword && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.confirmPassword.message}</p>
+            )}
+          </div>
+          <Button type="submit" className="w-full col-span-full bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white" disabled={isSubmitting}>
+            {isSubmitting ? "Creating Account..." : "Create Account"}
+          </Button>
+        </form>
+        <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
+          Already have an account?{" "}
+          <Link to="/login" className="text-blue-600 hover:underline dark:text-blue-400">
+            Sign in here
+          </Link>
+        </p>
+      </div>
+      <MadeWithDyad />
     </div>
   );
 };

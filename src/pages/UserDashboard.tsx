@@ -13,7 +13,6 @@ import ProfileView from "@/components/ProfileView";
 import ProfileEdit from "@/components/ProfileEdit";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import RoomList from "@/components/RoomList";
 import DailyScheduleGrid from "@/components/DailyScheduleGrid";
 import WeeklyScheduleGrid from "@/components/WeeklyScheduleGrid";
 import WeeklyRoomDetailsDialog from "@/components/WeeklyRoomDetailsDialog";
@@ -315,7 +314,6 @@ const UserDashboard = () => {
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Left Sidebar */}
         <div className="w-full md:w-1/5 flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 overflow-y-auto">
-          {/* Removed <h3 className="text-lg font-semibold">Calendar</h3> */}
           <MiniCalendar
             mode="single"
             selected={selectedDate}
@@ -333,7 +331,6 @@ const UserDashboard = () => {
               </SelectContent>
             </Select>
           </div>
-          <RoomList rooms={rooms} />
         </div>
 
         {/* Right Content Area (Main Schedule View) */}

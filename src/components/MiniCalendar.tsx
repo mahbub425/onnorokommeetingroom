@@ -26,9 +26,9 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ selected, onSelect, classNa
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full h-full border-collapse space-y-1",
-        head_row: "flex gap-x-1",
+        head_row: "flex gap-x-2", // Increased gap-x
         head_cell: "text-muted-foreground rounded-md w-full font-normal text-xs uppercase",
-        row: "flex w-full mt-2 gap-x-1",
+        row: "flex w-full mt-1 gap-x-2", // Reduced mt and increased gap-x
         cell: "w-full text-center p-0 relative focus-within:relative focus-within:z-20",
         day: cn(
           "w-full aspect-square flex items-center justify-center p-1 font-normal aria-selected:opacity-100 text-sm rounded-full",

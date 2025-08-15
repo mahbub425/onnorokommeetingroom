@@ -31,9 +31,9 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ selected, onSelect, classNa
         head_row: "flex",
         head_cell: "text-muted-foreground rounded-md w-full font-normal text-xs", // Smaller text
         row: "flex w-full mt-2",
-        cell: "w-full text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-range-start)]:rounded-l-md [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20", // Removed h-8
+        cell: "w-full text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-range-start)]:rounded-l-md [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
         day: cn(
-          "w-full py-1 font-normal aria-selected:opacity-100 text-xs" // Removed h-8, added py-1, smaller text
+          "w-full py-2 font-normal aria-selected:opacity-100 text-xs" // Increased py-1 to py-2 for better spacing
         ),
         day_range_end: "day-range-end",
         day_selected:

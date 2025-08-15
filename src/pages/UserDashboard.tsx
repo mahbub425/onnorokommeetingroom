@@ -276,7 +276,7 @@ const UserDashboard = () => {
   const loggedInAs = isAdmin ? "Super Admin" : userProfile?.email || session?.user?.email;
 
   return (
-    <div className="flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100"> {/* Removed h-screen */}
+    <div className="flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Top Bar */}
       <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 shadow-md">
         <div className="flex items-center space-x-4">
@@ -311,9 +311,9 @@ const UserDashboard = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex flex-col md:flex-row flex-1"> {/* Removed overflow-hidden */}
+      <div className="flex flex-col md:flex-row flex-1">
         {/* Left Sidebar */}
-        <div className="w-full md:w-1/5 flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 overflow-y-auto">
+        <div className="w-full md:w-1/5 flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 overflow-y-auto h-full">
           <MiniCalendar
             mode="single"
             selected={selectedDate}

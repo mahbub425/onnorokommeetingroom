@@ -28,14 +28,6 @@ const formSchema = z.object({
   department: z.string().optional(),
   designation: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters").optional(), // Optional for edit, required for add
-}).superRefine((data, ctx) => {
-  if (!data.password && !data.name) { // Check if it's an add operation and password is missing
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Password is required for new users",
-      path: ["password"],
-    });
-  }
 });
 
 interface UserFormDialogProps {
@@ -60,6 +52,20 @@ const UserFormDialog: React.FC<UserFormDialogProps> = ({ open, onOpenChange, use
       password: "", // Always empty for security, only set for new user creation
     },
   });
+
+  // Corrected superRefine logic to use the 'user' prop
+  useEffect(() => {
+    form.clearErrors("password"); // Clear password error when user prop changes
+    form.control.unregister("password"); // Unregister password field to re-apply validation
+    form.control.register("password", {
+      required: !user ? "Password is required for new users" : false,
+      minLength: {
+        value: 6,
+        message: "Password must be at least 6 characters",
+      },
+    });
+  }, [user, form.control, form.clearErrors, form.register, form.unregister]);
+
 
   useEffect(() => {
     if (open && user) {
@@ -139,24 +145,22 @@ const UserFormDialog: React.FC<UserFormDialogProps> = ({ open, onOpenChange, use
 
       } else {
         // Add new user via Edge Function
-        if (!values.password) {
-          form.setError("password", { type: "manual", message: "Password is required for new users" });
-          setIsSubmitting(false);
-          return;
-        }
+        // Password is now required by form schema for new users, so no need for manual check here
+        const payload = {
+          email: values.email,
+          password: values.password,
+          name: values.name,
+          pin: values.pin,
+          phone: values.phone, // Pass without +880, let edge function add it
+          department: values.department,
+          designation: values.designation,
+        };
+        console.log("Sending payload to Edge Function:", JSON.stringify(payload, null, 2));
 
         const { data, error: edgeFunctionError } = await supabase.functions.invoke(
           'create-user-by-admin',
           {
-            body: JSON.stringify({
-              email: values.email,
-              password: values.password,
-              name: values.name,
-              pin: values.pin,
-              phone: values.phone, // Pass without +880, let edge function add it
-              department: values.department,
-              designation: values.designation,
-            }),
+            body: JSON.stringify(payload),
             headers: { 'Content-Type': 'application/json' },
           }
         );

@@ -315,13 +315,13 @@ const UserDashboard = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar */}
-        <div className="w-1/4 p-4 border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4">
+        <div className="w-full sm:w-80 lg:w-96 xl:w-[400px] 2xl:w-[450px] p-4 border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 min-w-[300px]">
           <h3 className="text-lg font-semibold">Calendar</h3>
           <Calendar
             mode="single"
             selected={selectedDate}
             onSelect={setSelectedDate}
-            className="rounded-md border shadow"
+            className="rounded-md border shadow w-full max-w-full"
           />
           <div className="space-y-2">
             <Label htmlFor="layout-filter">Layout Filter</Label>

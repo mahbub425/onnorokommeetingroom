@@ -38,37 +38,28 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
           
           setIsAdmin(userRole === 'admin');
+
+          // After determining role, handle redirection
+          if (userRole === 'admin') {
+            if (location.pathname !== "/admin-dashboard") {
+              navigate("/admin-dashboard");
+            }
+          } else { // Regular user
+            if (location.pathname !== "/") {
+              navigate("/");
+            }
+          }
         }, 0);
       } else {
         setIsAdmin(false);
+        // User is not logged in (Supabase auth)
+        const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/admin"];
+        if (!publicRoutes.includes(location.pathname)) {
+          navigate("/login"); // Redirect to login if trying to access any protected route
+        }
       }
 
       setIsLoading(false);
-
-      const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
-      const adminRoutes = ["/admin", "/admin-dashboard"];
-      const isPublicRoute = publicRoutes.includes(location.pathname);
-      const isAdminRoute = adminRoutes.includes(location.pathname);
-
-      if (currentSession) {
-        // User is logged in (Supabase auth)
-        if (userRole === 'admin') {
-          if (isPublicRoute && location.pathname !== "/admin") { // Allow /admin for admin login, but redirect from other public routes
-            navigate("/admin-dashboard");
-          }
-        } else { // Regular user
-          if (isAdminRoute) {
-            navigate("/"); // Regular users cannot access admin routes
-          } else if (isPublicRoute) {
-            navigate("/"); // Redirect regular users from public routes
-          }
-        }
-      } else {
-        // User is not logged in (Supabase auth)
-        if (!isPublicRoute && !isAdminRoute) { // If trying to access protected routes (user or admin dashboard)
-          navigate("/login"); // Redirect to login
-        }
-      }
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);

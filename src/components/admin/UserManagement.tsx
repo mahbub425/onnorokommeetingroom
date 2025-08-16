@@ -202,7 +202,7 @@ const UserManagement = () => {
                         {user.status}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right space-x-2">
+                    <TableCell className="text-right flex flex-nowrap justify-end gap-1 min-w-[120px]">
                       <Button
                         variant="outline"
                         size="sm"

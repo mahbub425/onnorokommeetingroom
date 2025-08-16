@@ -316,7 +316,7 @@ const BookingList = () => {
                     <TableCell>{booking.user_department || "N/A"}</TableCell>
                     <TableCell>{format(parseISO(booking.date), "MMM dd, yyyy")}</TableCell>
                     <TableCell>{format(parseISO(`2000-01-01T${booking.start_time}`), "h:mma")} - {format(parseISO(`2000-01-01T${booking.end_time}`), "h:mma")}</TableCell>
-                    <TableCell className="text-right space-x-2">
+                    <TableCell className="text-right flex flex-nowrap justify-end gap-1 min-w-[120px]">
                       <Button variant="outline" size="sm" onClick={() => handleViewBooking(booking)}>
                         <Eye className="h-4 w-4" />
                       </Button>

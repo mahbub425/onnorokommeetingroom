@@ -23,9 +23,14 @@ const AdminLogin = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { session, isAdmin, isLoading } = useSession();
 
+  // Redirect if already logged in
   useEffect(() => {
-    if (!isLoading && session && isAdmin) {
-      navigate("/admin-dashboard");
+    if (!isLoading && session) {
+      if (isAdmin) {
+        navigate("/admin-dashboard");
+      } else {
+        navigate("/");
+      }
     }
   }, [isLoading, session, isAdmin, navigate]);
 
@@ -103,7 +108,7 @@ const AdminLogin = () => {
           title: "Login Successful",
           description: "Welcome, Admin!",
         });
-        navigate("/admin-dashboard");
+        // Redirection is now handled by SessionProvider's onAuthStateChange
       }
     } catch (error: any) {
       toast({
@@ -116,7 +121,7 @@ const AdminLogin = () => {
     }
   };
 
-  if (isLoading || (session && isAdmin)) {
+  if (isLoading || (session && isAdmin) || (session && !isAdmin)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <p className="text-xl">Loading...</p>

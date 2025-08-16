@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
 import { MadeWithDyad } from "@/components/made-with-dyad";
+import { useSession } from "@/components/SessionProvider"; // Import useSession
 
 const formSchema = z.object({
   pin: z.string().min(1, "PIN is required"),
@@ -21,6 +22,18 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { session, isAdmin, isLoading } = useSession(); // Use useSession hook
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!isLoading && session) {
+      if (isAdmin) {
+        navigate("/admin-dashboard");
+      } else {
+        navigate("/");
+      }
+    }
+  }, [isLoading, session, isAdmin, navigate]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -80,7 +93,7 @@ const Login = () => {
           title: "Login Successful",
           description: "You have been successfully logged in.",
         });
-        navigate("/");
+        // Redirection is now handled by SessionProvider's onAuthStateChange
       }
     } catch (error: any) {
       toast({
@@ -92,6 +105,15 @@ const Login = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading || (session && !isAdmin) || (session && isAdmin)) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        <p className="text-xl">Loading...</p>
+        <MadeWithDyad />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">

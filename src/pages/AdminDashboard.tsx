@@ -5,7 +5,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import { supabase } from "@/integrations/supabase/auth";
 import { useToast } from "@/components/ui/use-toast";
 import { Users, ListChecks, BarChart3, Home } from "lucide-react";
-import { format, subMonths } from "date-fns";
+import { format } from "date-fns"; // Removed subMonths
 import { DateRange } from "react-day-picker";
 import { useSession } from "@/components/SessionProvider";
 import AnalyticsDashboard from "@/components/admin/AnalyticsDashboard";
@@ -23,8 +23,8 @@ const AdminDashboard = () => {
   // Filter states for Analytics
   const [filterRoomId, setFilterRoomId] = useState<string | null>(null);
   const [filterDateRange, setFilterDateRange] = useState<DateRange>({
-    from: subMonths(new Date(), 6),
-    to: new Date(),
+    from: undefined, // Changed initial state to undefined
+    to: undefined,   // Changed initial state to undefined
   });
   const [rooms, setRooms] = useState<Room[]>([]);
 
@@ -53,8 +53,8 @@ const AdminDashboard = () => {
     if (preferences && !error) {
       setFilterRoomId(preferences.filter_room_id);
       setFilterDateRange({
-        from: preferences.filter_date_start ? new Date(preferences.filter_date_start) : subMonths(new Date(), 6),
-        to: preferences.filter_date_end ? new Date(preferences.filter_date_end) : new Date(),
+        from: preferences.filter_date_start ? new Date(preferences.filter_date_start) : undefined, // Set to undefined if null
+        to: preferences.filter_date_end ? new Date(preferences.filter_date_end) : undefined,     // Set to undefined if null
       });
     }
   };

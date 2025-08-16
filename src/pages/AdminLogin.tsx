@@ -7,12 +7,13 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast"; // Corrected syntax
+import { useToast } from "@/components/ui/use-toast";
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { useSession } from "@/components/SessionProvider"; // Import useSession
+import { useSession } from "@/components/SessionProvider";
+import { Mail, User as UserIcon } from "lucide-react"; // Import Mail and UserIcon
 
 const formSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Invalid email format"),
+  emailOrUsername: z.string().min(1, "Email or Username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -20,9 +21,8 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { session, isAdmin, isLoading } = useSession(); // Use session context
+  const { session, isAdmin, isLoading } = useSession();
 
-  // Redirect if already logged in as admin
   useEffect(() => {
     if (!isLoading && session && isAdmin) {
       navigate("/admin-dashboard");
@@ -32,23 +32,49 @@ const AdminLogin = () => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      emailOrUsername: "",
       password: "",
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
+    let emailToUse = values.emailOrUsername;
+
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: values.email,
+      // Determine if the input is an email or a username
+      const isEmail = values.emailOrUsername.includes('@');
+
+      if (!isEmail) {
+        // If it's not an email, assume it's a username and try to find the associated email
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('email, role')
+          .eq('username', values.emailOrUsername)
+          .single();
+
+        if (profileError || !profileData) {
+          toast({
+            title: "Login Error",
+            description: "Invalid Username or Password.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        emailToUse = profileData.email;
+      }
+
+      // Attempt to sign in with the determined email and password
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: emailToUse,
         password: values.password,
       });
 
-      if (error) {
+      if (signInError) {
         toast({
           title: "Login Error",
-          description: error.message,
+          description: signInError.message,
           variant: "destructive",
         });
         return;
@@ -90,7 +116,6 @@ const AdminLogin = () => {
     }
   };
 
-  // If loading session or already an admin, don't show the login form
   if (isLoading || (session && isAdmin)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -107,10 +132,13 @@ const AdminLogin = () => {
         <p className="text-center text-gray-600 dark:text-gray-400 mb-6">Enter your admin credentials.</p>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" placeholder="admin@example.com" type="email" {...form.register("email")} autoComplete="username" />
-            {form.formState.errors.email && (
-              <p className="text-red-500 text-sm mt-1">{form.formState.errors.email.message}</p>
+            <Label htmlFor="emailOrUsername" className="flex items-center mb-1">
+              {form.watch("emailOrUsername").includes('@') ? <Mail className="inline-block mr-2 h-4 w-4" /> : <UserIcon className="inline-block mr-2 h-4 w-4" />}
+              Email or Username
+            </Label>
+            <Input id="emailOrUsername" placeholder="admin@example.com or admin_username" type="text" {...form.register("emailOrUsername")} autoComplete="username" />
+            {form.formState.errors.emailOrUsername && (
+              <p className="text-red-500 text-sm mt-1">{form.formState.errors.emailOrUsername.message}</p>
             )}
           </div>
           <div>

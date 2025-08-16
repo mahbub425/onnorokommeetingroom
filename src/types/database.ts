@@ -39,6 +39,7 @@ export interface UserProfile {
   pin: string | null;
   phone: string | null;
   email: string | null;
+  username?: string | null; // Added username field
   department: string | null;
   designation: string | null;
   role: 'user' | 'admin';

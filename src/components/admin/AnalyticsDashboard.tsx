@@ -6,7 +6,7 @@ import AnalyticsFilters from "./AnalyticsFilters";
 import AnalyticsCards from "./AnalyticsCards";
 import BookingsByRoomChart from "./BookingsByRoomChart";
 import DailyBookingGrowthChart from "./DailyBookingGrowthChart";
-import { format, isBefore, isAfter, startOfDay } from "date-fns";
+import { format, startOfDay, isWithinInterval } from "date-fns"; // Fixed: Imported isWithinInterval, removed unused isBefore, isAfter
 import { DateRange } from "react-day-picker";
 
 interface AnalyticsDashboardProps {
@@ -28,8 +28,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 }) => {
   const { toast } = useToast();
   const [totalUsers, setTotalUsers] = useState<number>(0);
-  const [totalBookings, setTotalBookings] = useState<number>(0);
-  const [todaysBookings, setTodaysBookings] = useState<number>(0);
+  const [totalBookings, setTotalBookings] = useState<number>(0); // This will now be the absolute total
+  const [todaysBookings, setTodaysBookings] = useState<number>(0); // This will be filtered for today
   const [bookingsData, setBookingsData] = useState<Booking[]>([]);
 
   useEffect(() => {
@@ -49,8 +49,19 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       setTotalUsers(usersCount || 0);
     }
 
-    // Fetch Bookings data for all cards and charts (filtered by current filters)
-    let bookingsQuery = supabase.from('bookings').select(`
+    // Fetch ABSOLUTE TOTAL Bookings for the "Total Bookings" card (NO FILTERS APPLIED HERE)
+    const { count: absoluteTotalBookingsCount, error: absoluteTotalBookingsError } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact' });
+
+    if (absoluteTotalBookingsError) {
+      toast({ title: "Error", description: "Failed to fetch overall total bookings.", variant: "destructive" });
+    } else {
+      setTotalBookings(absoluteTotalBookingsCount || 0);
+    }
+
+    // Fetch Bookings data for charts and "Today's Bookings" (filtered by current filters)
+    let filteredBookingsQuery = supabase.from('bookings').select(`
       *,
       profiles (
         name,
@@ -60,21 +71,21 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       rooms (
         name
       )
-    `, { count: 'exact' });
+    `);
 
     if (filterRoomId) {
-      bookingsQuery = bookingsQuery.eq('room_id', filterRoomId);
+      filteredBookingsQuery = filteredBookingsQuery.eq('room_id', filterRoomId);
     }
     if (filterDateRange.from) {
-      bookingsQuery = bookingsQuery.gte('date', format(filterDateRange.from, 'yyyy-MM-dd'));
+      filteredBookingsQuery = filteredBookingsQuery.gte('date', format(filterDateRange.from, 'yyyy-MM-dd'));
     }
     if (filterDateRange.to) {
-      bookingsQuery = bookingsQuery.lte('date', format(filterDateRange.to, 'yyyy-MM-dd'));
+      filteredBookingsQuery = filteredBookingsQuery.lte('date', format(filterDateRange.to, 'yyyy-MM-dd'));
     }
 
-    const { data: filteredBookings, error: bookingsError, count: filteredBookingsCount } = await bookingsQuery.order('date', { ascending: true });
+    const { data: filteredBookings, error: filteredBookingsError } = await filteredBookingsQuery.order('date', { ascending: true });
 
-    if (bookingsError) {
+    if (filteredBookingsError) {
       toast({ title: "Error", description: "Failed to fetch filtered bookings data.", variant: "destructive" });
     } else {
       const bookingsWithDetails = filteredBookings?.map(booking => ({
@@ -86,25 +97,17 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       })) as Booking[] || [];
       
       setBookingsData(bookingsWithDetails);
-      setTotalBookings(filteredBookingsCount || 0); // "Total Bookings" card now shows count of filtered data
-
+      
       // Calculate Today's Bookings from the fetched filtered data
       const today = startOfDay(new Date());
       let countToday = 0;
 
-      let shouldCountToday = true;
-      if (filterDateRange.from) {
-        if (isBefore(today, startOfDay(filterDateRange.from))) {
-          shouldCountToday = false;
-        }
-      }
-      if (filterDateRange.to) {
-        if (isAfter(today, startOfDay(filterDateRange.to))) {
-          shouldCountToday = false;
-        }
-      }
+      // Check if today falls within the selected date range filter
+      const isTodayWithinFilterRange = (filterDateRange.from && filterDateRange.to)
+        ? isWithinInterval(today, { start: startOfDay(filterDateRange.from), end: startOfDay(filterDateRange.to) })
+        : true; // If no date range filter, consider today as within range
 
-      if (shouldCountToday) {
+      if (isTodayWithinFilterRange) {
         countToday = bookingsWithDetails.filter(b => format(new Date(b.date), 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd')).length;
       }
       setTodaysBookings(countToday);

@@ -1,15 +1,15 @@
 import React from "react";
 import { Room, Booking } from "@/types/database";
-import { format, addDays, subDays, parseISO, getDay } from "date-fns"; // Removed isSameDay
+import { format, addDays, subDays, parseISO } from "date-fns"; // Removed getDay
 import { cn } from "@/lib/utils";
-import { Plus, ChevronLeft, ChevronRight } from "@/components/ui/icons"; // Assuming icons are from ui/icons
+import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface WeeklyScheduleGridProps {
   rooms: Room[];
   bookings: Booking[];
   selectedDate: Date;
-  onViewRoomDetails: (room: Room, date: Date, dailyBookings: Booking[]) => void; // Updated signature
+  onViewRoomDetails: (room: Room, date: Date, dailyBookings: Booking[]) => void;
   onSelectDate: (date: Date) => void;
   onViewBooking: (booking: Booking) => void;
 }
@@ -41,7 +41,7 @@ const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
   };
 
   return (
-    <div className="overflow-x-auto"> {/* Keep overflow-x-auto for the outer container in case of very small screens, but grid itself will try to fit */}
+    <div className="overflow-x-auto">
       <div className="mb-4 flex justify-between items-end">
         <div>
           <h2 className="text-2xl font-bold">Weekly Schedule</h2>
@@ -89,7 +89,7 @@ const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
 
         {/* Main Grid: Dates and Bookings */}
         <div className="grid grid-rows-1 auto-rows-min overflow-x-hidden flex-1">
-          <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700"> {/* Changed to grid-cols-7 */}
+          <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
             {weekDates.map((date) => (
               <div
                 key={format(date, "yyyy-MM-dd")}
@@ -102,7 +102,7 @@ const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
           </div>
 
           {rooms.map((room) => (
-            <div key={room.id} className="grid grid-cols-7"> {/* Changed to grid-cols-7 */}
+            <div key={room.id} className="grid grid-cols-7">
               {weekDates.map((date) => {
                 const dailyBookings = getBookingsForRoomAndDate(room.id, date);
                 const cellClasses = cn(
@@ -117,17 +117,17 @@ const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
                     key={`${room.id}-${format(date, "yyyy-MM-dd")}`}
                     className={cellClasses}
                     onClick={() => {
-                      onViewRoomDetails(room, date, dailyBookings); // Pass dailyBookings
+                      onViewRoomDetails(room, date, dailyBookings);
                     }}
                   >
                     {dailyBookings.slice(0, 2).map((booking) => (
                       <div
                         key={booking.id}
                         className="text-xs text-white text-center leading-tight mb-1 p-1 rounded-sm w-full"
-                        style={{ backgroundColor: room.color || "#888" }} // Apply room color
+                        style={{ backgroundColor: room.color || "#888" }}
                         onClick={(e) => {
-                          e.stopPropagation(); // Prevent triggering the parent cell's onClick
-                          onViewBooking(booking); // Open details for this specific booking
+                          e.stopPropagation();
+                          onViewBooking(booking);
                         }}
                       >
                         <span className="font-medium">{booking.title.substring(0, 15)}{booking.title.length > 15 ? "..." : ""}</span>

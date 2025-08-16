@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Upload, Edit, Trash2, Ban, CheckCircle } from "lucide-react";
+import { Search, Edit, Trash2, Ban, CheckCircle } from "lucide-react"; // Removed Plus, Upload
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import UserFormDialog from "./UserFormDialog";
-import BulkUploadDialog from "./BulkUploadDialog";
+// import BulkUploadDialog from "./BulkUploadDialog"; // Removed import
 
 const usersPerPageOptions = [10, 20, 50, 100];
 
@@ -21,10 +21,10 @@ const UserManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(usersPerPageOptions[0]);
   const [totalUsersCount, setTotalUsersCount] = useState(0);
-  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  // const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false); // Removed
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-  const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
+  // const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false); // Removed
 
   const fetchUsers = useCallback(async () => {
     const offset = (currentPage - 1) * usersPerPage;
@@ -61,11 +61,12 @@ const UserManagement = () => {
     fetchUsers();
   };
 
-  const handleAddUserSuccess = () => {
-    setIsAddUserDialogOpen(false);
-    fetchUsers();
-    toast({ title: "User Added", description: "New user has been successfully added." });
-  };
+  // Removed handleAddUserSuccess
+  // const handleAddUserSuccess = () => {
+  //   setIsAddUserDialogOpen(false);
+  //   fetchUsers();
+  //   toast({ title: "User Added", description: "New user has been successfully added." });
+  // };
 
   const handleEditUserSuccess = () => {
     setIsEditUserDialogOpen(false);
@@ -74,11 +75,12 @@ const UserManagement = () => {
     toast({ title: "User Updated", description: "User profile has been successfully updated." });
   };
 
-  const handleBulkUploadSuccess = () => {
-    setIsBulkUploadDialogOpen(false);
-    fetchUsers();
-    toast({ title: "Bulk Upload Complete", description: "Bulk user upload process finished. Check logs for details." });
-  };
+  // Removed handleBulkUploadSuccess
+  // const handleBulkUploadSuccess = () => {
+  //   setIsBulkUploadDialogOpen(false);
+  //   fetchUsers();
+  //   toast({ title: "Bulk Upload Complete", description: "Bulk user upload process finished. Check logs for details." });
+  // };
 
   const handleDeleteUser = async (userId: string) => {
     try {
@@ -149,12 +151,14 @@ const UserManagement = () => {
             <Search className="h-4 w-4 mr-2" /> Search
           </Button>
         </div>
-        <Button onClick={() => setIsAddUserDialogOpen(true)}>
+        {/* Removed Add New User Button */}
+        {/* <Button onClick={() => setIsAddUserDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Add New User
-        </Button>
-        <Button variant="outline" onClick={() => setIsBulkUploadDialogOpen(true)}>
+        </Button> */}
+        {/* Removed Upload Bulk User Button */}
+        {/* <Button variant="outline" onClick={() => setIsBulkUploadDialogOpen(true)}>
           <Upload className="h-4 w-4 mr-2" /> Upload Bulk User
-        </Button>
+        </Button> */}
       </div>
 
       {/* User List Table */}
@@ -279,13 +283,14 @@ const UserManagement = () => {
       </div>
 
       {/* Add/Edit User Dialog */}
-      {isAddUserDialogOpen && (
+      {/* Removed Add User Dialog */}
+      {/* {isAddUserDialogOpen && (
         <UserFormDialog
           open={isAddUserDialogOpen}
           onOpenChange={setIsAddUserDialogOpen}
           onSaveSuccess={handleAddUserSuccess}
         />
-      )}
+      )} */}
       {isEditUserDialogOpen && editingUser && (
         <UserFormDialog
           open={isEditUserDialogOpen}
@@ -296,13 +301,14 @@ const UserManagement = () => {
       )}
 
       {/* Bulk Upload Dialog */}
-      {isBulkUploadDialogOpen && (
+      {/* Removed Bulk Upload Dialog */}
+      {/* {isBulkUploadDialogOpen && (
         <BulkUploadDialog
           open={isBulkUploadDialogOpen}
           onOpenChange={setIsBulkUploadDialogOpen}
           onUploadSuccess={handleBulkUploadSuccess}
         />
-      )}
+      )} */}
     </div>
   );
 };

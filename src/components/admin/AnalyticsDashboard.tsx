@@ -28,8 +28,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 }) => {
   const { toast } = useToast();
   const [totalUsers, setTotalUsers] = useState<number>(0);
-  const [totalBookings, setTotalBookings] = useState<number>(0); // This will now be the filtered total
-  const [todaysBookings, setTodaysBookings] = useState<number>(0); // This will be filtered for today
+  const [totalBookings, setTotalBookings] = useState<number>(0);
+  const [todaysBookings, setTodaysBookings] = useState<number>(0);
   const [bookingsData, setBookingsData] = useState<Booking[]>([]);
 
   useEffect(() => {
@@ -49,7 +49,24 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       setTotalUsers(usersCount || 0);
     }
 
-    // Fetch Bookings data for all cards and charts (filtered by current filters)
+    // Determine if any filter is active for total bookings calculation
+    const isAnyFilterActive = filterRoomId !== null || filterDateRange.from !== undefined || filterDateRange.to !== undefined;
+
+    let totalBookingsCount = 0;
+    if (!isAnyFilterActive) {
+      // Fetch ABSOLUTE TOTAL Bookings when no filters are active
+      const { count, error } = await supabase
+        .from('bookings')
+        .select('id', { count: 'exact' });
+      
+      if (error) {
+        toast({ title: "Error", description: "Failed to fetch overall total bookings.", variant: "destructive" });
+      } else {
+        totalBookingsCount = count || 0;
+      }
+    }
+
+    // Fetch Bookings data for charts and "Today's Bookings" (always filtered by current filters)
     let filteredBookingsQuery = supabase.from('bookings').select(`
       *,
       profiles (
@@ -72,7 +89,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       filteredBookingsQuery = filteredBookingsQuery.lte('date', format(filterDateRange.to, 'yyyy-MM-dd'));
     }
 
-    const { data: filteredBookings, error: filteredBookingsError, count: filteredBookingsCount } = await filteredBookingsQuery.order('date', { ascending: true });
+    const { data: filteredBookings, error: filteredBookingsError, count: currentFilteredBookingsCount } = await filteredBookingsQuery.order('date', { ascending: true });
 
     if (filteredBookingsError) {
       toast({ title: "Error", description: "Failed to fetch filtered bookings data.", variant: "destructive" });
@@ -86,7 +103,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       })) as Booking[] || [];
       
       setBookingsData(bookingsWithDetails);
-      setTotalBookings(filteredBookingsCount || 0); // "Total Bookings" card now shows count of filtered data
+      
+      // Set totalBookings based on whether filters are active
+      setTotalBookings(isAnyFilterActive ? (currentFilteredBookingsCount || 0) : totalBookingsCount);
       
       // Calculate Today's Bookings from the fetched filtered data
       const today = startOfDay(new Date());

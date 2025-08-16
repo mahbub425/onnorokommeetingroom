@@ -147,7 +147,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-x-auto"> {/* Added overflow-x-auto here */}
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-x-auto overflow-y-auto"> {/* Added overflow-y-auto here */}
         <DialogHeader className="p-6 pb-4">
           <DialogTitle className="text-center">{room.name}</DialogTitle>
         </DialogHeader>
@@ -211,8 +211,8 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
         </div>
 
         {/* Time Slots Grid with Single Scrollbar */}
-        <div className="flex-1 overflow-y-auto px-6 pb-4">
-          <div className="grid grid-cols-[60px_1fr] border border-gray-200 dark:border-gray-700 rounded-md relative min-w-[500px]"> {/* Added min-w-[500px] here */}
+        <div className="flex-1 px-6 pb-4"> {/* Removed overflow-y-auto from here */}
+          <div className="grid grid-cols-[60px_1fr] border border-gray-200 dark:border-gray-700 rounded-md relative min-w-[500px]">
             {/* Left Column: Time Labels (fixed height, aligns with hourly cells) */}
             <div className="flex flex-col">
               {dynamicHourlyLabels.map((label, _index) => (

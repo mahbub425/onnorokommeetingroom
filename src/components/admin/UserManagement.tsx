@@ -7,10 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Edit, Trash2, Ban, CheckCircle } from "lucide-react"; // Removed Plus, Upload
+import { Search, Edit, Trash2, Ban, CheckCircle } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import UserFormDialog from "./UserFormDialog";
-// import BulkUploadDialog from "./BulkUploadDialog"; // Removed import
 
 const usersPerPageOptions = [10, 20, 50, 100];
 
@@ -21,10 +20,8 @@ const UserManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(usersPerPageOptions[0]);
   const [totalUsersCount, setTotalUsersCount] = useState(0);
-  // const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false); // Removed
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-  // const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false); // Removed
 
   const fetchUsers = useCallback(async () => {
     const offset = (currentPage - 1) * usersPerPage;
@@ -61,26 +58,12 @@ const UserManagement = () => {
     fetchUsers();
   };
 
-  // Removed handleAddUserSuccess
-  // const handleAddUserSuccess = () => {
-  //   setIsAddUserDialogOpen(false);
-  //   fetchUsers();
-  //   toast({ title: "User Added", description: "New user has been successfully added." });
-  // };
-
   const handleEditUserSuccess = () => {
     setIsEditUserDialogOpen(false);
     setEditingUser(null);
     fetchUsers();
     toast({ title: "User Updated", description: "User profile has been successfully updated." });
   };
-
-  // Removed handleBulkUploadSuccess
-  // const handleBulkUploadSuccess = () => {
-  //   setIsBulkUploadDialogOpen(false);
-  //   fetchUsers();
-  //   toast({ title: "Bulk Upload Complete", description: "Bulk user upload process finished. Check logs for details." });
-  // };
 
   const handleDeleteUser = async (userId: string) => {
     try {
@@ -91,11 +74,6 @@ const UserManagement = () => {
         .eq('id', userId);
 
       if (profileError) throw profileError;
-
-      // Optionally, delete from auth.users if you want to completely remove the user from Supabase Auth
-      // Be careful with this, as it's irreversible.
-      // const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-      // if (authError) throw authError;
 
       toast({ title: "User Deleted", description: "User has been successfully deleted." });
       fetchUsers();
@@ -151,14 +129,6 @@ const UserManagement = () => {
             <Search className="h-4 w-4 mr-2" /> Search
           </Button>
         </div>
-        {/* Removed Add New User Button */}
-        {/* <Button onClick={() => setIsAddUserDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Add New User
-        </Button> */}
-        {/* Removed Upload Bulk User Button */}
-        {/* <Button variant="outline" onClick={() => setIsBulkUploadDialogOpen(true)}>
-          <Upload className="h-4 w-4 mr-2" /> Upload Bulk User
-        </Button> */}
       </div>
 
       {/* User List Table */}
@@ -229,13 +199,30 @@ const UserManagement = () => {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                      <Button
-                        variant={user.status === 'active' ? "secondary" : "default"}
-                        size="sm"
-                        onClick={() => handleToggleUserStatus(user)}
-                      >
-                        {user.status === 'active' ? <Ban className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant={user.status === 'active' ? "secondary" : "default"}
+                            size="sm"
+                          >
+                            {user.status === 'active' ? <Ban className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure you want to {user.status === 'active' ? "block" : "activate"} this user?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will change the user's status to {user.status === 'active' ? "blocked" : "active"}. They will {user.status === 'active' ? "not be able to log in" : "be able to log in"} after this action.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleToggleUserStatus(user)}>
+                              {user.status === 'active' ? "Block User" : "Activate User"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))
@@ -282,15 +269,6 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* Add/Edit User Dialog */}
-      {/* Removed Add User Dialog */}
-      {/* {isAddUserDialogOpen && (
-        <UserFormDialog
-          open={isAddUserDialogOpen}
-          onOpenChange={setIsAddUserDialogOpen}
-          onSaveSuccess={handleAddUserSuccess}
-        />
-      )} */}
       {isEditUserDialogOpen && editingUser && (
         <UserFormDialog
           open={isEditUserDialogOpen}
@@ -299,16 +277,6 @@ const UserManagement = () => {
           onSaveSuccess={handleEditUserSuccess}
         />
       )}
-
-      {/* Bulk Upload Dialog */}
-      {/* Removed Bulk Upload Dialog */}
-      {/* {isBulkUploadDialogOpen && (
-        <BulkUploadDialog
-          open={isBulkUploadDialogOpen}
-          onOpenChange={setIsBulkUploadDialogOpen}
-          onUploadSuccess={handleBulkUploadSuccess}
-        />
-      )} */}
     </div>
   );
 };

@@ -147,7 +147,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-x-auto"> {/* Added overflow-x-auto here */}
         <DialogHeader className="p-6 pb-4">
           <DialogTitle className="text-center">{room.name}</DialogTitle>
         </DialogHeader>
@@ -212,7 +212,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
 
         {/* Time Slots Grid with Single Scrollbar */}
         <div className="flex-1 overflow-y-auto px-6 pb-4">
-          <div className="grid grid-cols-[60px_1fr] border border-gray-200 dark:border-gray-700 rounded-md relative">
+          <div className="grid grid-cols-[60px_1fr] border border-gray-200 dark:border-gray-700 rounded-md relative min-w-[500px]"> {/* Added min-w-[500px] here */}
             {/* Left Column: Time Labels (fixed height, aligns with hourly cells) */}
             <div className="flex flex-col">
               {dynamicHourlyLabels.map((label, _index) => (
@@ -232,10 +232,10 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
 
                 // Determine if this 30-min slot is covered by any booking
                 const coveringBooking = roomBookings.find(booking => {
-                  const bookingStart = parseISO(`2000-01-01T${booking.start_time}`);
-                  const bookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
+                  const existingBookingStart = parseISO(`2000-01-01T${booking.start_time}`);
+                  const existingBookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
                   const slotEndDateTime = addMinutes(slotStartDateTime, 30);
-                  return isBefore(slotStartDateTime, bookingEnd) && isAfter(slotEndDateTime, bookingStart);
+                  return isBefore(slotStartDateTime, existingBookingEnd) && isAfter(slotEndDateTime, existingBookingStart);
                 });
 
                 // Only render the background cell if it's NOT covered by a booking

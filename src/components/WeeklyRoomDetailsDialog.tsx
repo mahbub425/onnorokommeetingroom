@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay } from "date-fns"; // Added startOfDay
 import { Plus } from "lucide-react";
 import { Room, Booking } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
@@ -90,6 +90,16 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   const handleEmptySlotClick = (slotTime: string) => {
     if (!room || !selectedDate) return;
 
+    const isPastDate = isBefore(startOfDay(selectedDate), startOfDay(new Date()));
+    if (isPastDate) {
+      toast({
+        title: "Booking Not Allowed",
+        description: "Cannot book for past dates.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Check if the clicked 30-min slot is within the room's available time
     const slotStartMinutes = timeToMinutes(slotTime);
     const roomStartMinutes = room.available_time ? timeToMinutes(room.available_time.start) : 0;
@@ -145,9 +155,11 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   const currentWeekDates = Array.from({ length: 7 }).map((_, i) => addDays(startOfCurrentWeek, i));
   const nextWeekDates = Array.from({ length: 7 }).map((_, i) => addDays(startOfCurrentWeek, 7 + i));
 
+  const isPastSelectedDate = isBefore(startOfDay(selectedDate || new Date()), startOfDay(new Date()));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-x-auto overflow-y-auto"> {/* Added overflow-y-auto here */}
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-x-auto overflow-y-auto">
         <DialogHeader className="p-6 pb-4">
           <DialogTitle className="text-center">{room.name}</DialogTitle>
         </DialogHeader>
@@ -211,7 +223,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
         </div>
 
         {/* Time Slots Grid with Single Scrollbar */}
-        <div className="flex-1 px-6 pb-4"> {/* Removed overflow-y-auto from here */}
+        <div className="flex-1 px-6 pb-4">
           <div className="grid grid-cols-[60px_1fr] border border-gray-200 dark:border-gray-700 rounded-md relative min-w-[500px]">
             {/* Left Column: Time Labels (fixed height, aligns with hourly cells) */}
             <div className="flex flex-col">
@@ -238,16 +250,21 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                   return isBefore(slotStartDateTime, existingBookingEnd) && isAfter(slotEndDateTime, existingBookingStart);
                 });
 
+                const canBookSlot = !isPastSelectedDate; // Only allow booking if it's not a past date
+
                 // Only render the background cell if it's NOT covered by a booking
                 if (!coveringBooking) {
                   return (
                     <div
                       key={`empty-slot-${slotTime}`}
-                      className="h-[30px] flex items-center justify-center p-1 border-b border-gray-200 dark:border-gray-700 last:border-b-0 bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer"
-                      onClick={() => handleEmptySlotClick(slotTime)}
+                      className={cn(
+                        "h-[30px] flex items-center justify-center p-1 border-b border-gray-200 dark:border-gray-700 last:border-b-0",
+                        canBookSlot ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60"
+                      )}
+                      onClick={canBookSlot ? () => handleEmptySlotClick(slotTime) : undefined}
                       style={{ top: `${index * 30}px`, position: 'absolute', left: 0, right: 0 }}
                     >
-                      <Plus className="h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <Plus className={cn("h-5 w-5 text-gray-400", canBookSlot ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />
                     </div>
                   );
                 }

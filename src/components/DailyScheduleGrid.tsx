@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Room, Booking } from "@/types/database";
-import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, isSameDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, isSameDay, startOfDay } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils"; // Added import for cn
 
 // Generates 30-minute time slots for the entire day (e.g., "00:00", "00:30", ..., "23:30")
 const generateDetailedTimeSlots = () => {
@@ -69,9 +70,11 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
     ).sort((a: Booking, b: Booking) => a.start_time.localeCompare(b.start_time));
   };
 
+  const isPastDate = isBefore(startOfDay(selectedDate), startOfDay(new Date()));
+
   return (
     <div className="overflow-x-auto">
-      <div className="mb-4 flex justify-end items-end"> {/* Adjusted to justify-end */}
+      <div className="mb-4 flex justify-end items-end">
         <div className="flex space-x-2">
           <Button
             variant="outline"
@@ -188,6 +191,8 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                       return isBefore(bookingStart, slotStartDateTime) && isAfter(bookingEnd, slotStartDateTime);
                     });
 
+                    const canBook = !isPastDate; // Only allow booking if it's not a past date
+
                     if (isCoveredByEarlierBooking) {
                       return null; // This slot is part of an ongoing booking, don't render a separate cell
                     }
@@ -196,10 +201,13 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                     return (
                       <div
                         key={`${room.id}-${slotTime}`}
-                        className="h-full flex items-center justify-center p-1 border-r border-b border-gray-200 dark:border-gray-700 last:border-r-0 bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer"
-                        onClick={() => onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm"))}
+                        className={cn(
+                          "h-full flex items-center justify-center p-1 border-r border-b border-gray-200 dark:border-gray-700 last:border-r-0",
+                          canBook ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60"
+                        )}
+                        onClick={canBook ? () => onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm")) : undefined}
                       >
-                        <Plus className="h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Plus className={cn("h-5 w-5 text-gray-400", canBook ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />
                       </div>
                     );
                   }

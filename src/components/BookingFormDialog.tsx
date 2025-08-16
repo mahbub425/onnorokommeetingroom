@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, parseISO, isBefore, addMinutes, isSameDay } from "date-fns"; // Removed isAfter
+import { format, parseISO, isBefore, addMinutes, isSameDay, startOfDay } from "date-fns"; // Added startOfDay
 import { CalendarIcon, Clock, Text, Repeat, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Room, Booking } from "@/types/database";
@@ -65,6 +65,14 @@ const formSchema = z.object({
 }, {
   message: "End date is required for custom repeat",
   path: ["endDate"],
+}).refine((data) => {
+  // New validation: Cannot book for past dates
+  const today = startOfDay(new Date());
+  const selected = startOfDay(data.date);
+  return isSameDay(selected, today) || isBefore(today, selected); // Allow today or future dates
+}, {
+  message: "Cannot book for past dates",
+  path: ["date"],
 });
 
 interface BookingFormDialogProps {
@@ -331,6 +339,7 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
                   selected={form.watch("date")}
                   onSelect={(date) => form.setValue("date", date!)}
                   initialFocus
+                  disabled={(date) => isBefore(date, startOfDay(new Date()))} // Disable past dates
                 />
               </PopoverContent>
             </Popover>
@@ -420,6 +429,7 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
                         selected={form.watch("endDate")}
                         onSelect={(date) => form.setValue("endDate", date!)}
                         initialFocus
+                        disabled={(date) => isBefore(date, startOfDay(new Date()))} // Disable past dates
                       />
                     </PopoverContent>
                   </Popover>

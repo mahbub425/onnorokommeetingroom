@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { Room, Booking } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import MiniCalendar from "@/components/MiniCalendar"; // Import MiniCalendar
 
 interface WeeklyRoomDetailsDialogProps {
   open: boolean;
@@ -147,7 +148,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-x-auto overflow-y-auto"> {/* Added overflow-y-auto here */}
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-x-auto overflow-y-auto">
         <DialogHeader className="p-6 pb-4">
           <DialogTitle className="text-center">{room.name}</DialogTitle>
         </DialogHeader>
@@ -210,8 +211,18 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
           </div>
         </div>
 
+        {/* Mini Calendar */}
+        <div className="px-6 mb-6">
+          <MiniCalendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            defaultMonth={new Date()} // Set default month to current date
+          />
+        </div>
+
         {/* Time Slots Grid with Single Scrollbar */}
-        <div className="flex-1 px-6 pb-4"> {/* Removed overflow-y-auto from here */}
+        <div className="flex-1 px-6 pb-4">
           <div className="grid grid-cols-[60px_1fr] border border-gray-200 dark:border-gray-700 rounded-md relative min-w-[500px]">
             {/* Left Column: Time Labels (fixed height, aligns with hourly cells) */}
             <div className="flex flex-col">

@@ -5,9 +5,10 @@ import { DayPickerSingleProps } from "react-day-picker";
 
 interface MiniCalendarProps extends DayPickerSingleProps {
   className?: string;
+  defaultMonth?: Date; // Added defaultMonth prop
 }
 
-const MiniCalendar: React.FC<MiniCalendarProps> = ({ selected, onSelect, className, ...props }) => {
+const MiniCalendar: React.FC<MiniCalendarProps> = ({ selected, onSelect, className, defaultMonth, ...props }) => {
   return (
     <Calendar
       selected={selected}
@@ -18,6 +19,7 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ selected, onSelect, classNa
         "max-w-[315px]", // Max width for desktop
         className // Removed aspect-[315/476] and overflow-hidden
       )}
+      month={defaultMonth} // Use defaultMonth to control which month is displayed initially
       classNames={{
         // Adjust internal calendar elements to fit better within the constrained aspect ratio
         caption: "flex justify-center pt-1 relative items-center text-sm",

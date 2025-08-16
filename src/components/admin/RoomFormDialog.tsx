@@ -61,7 +61,7 @@ const RoomFormDialog: React.FC<RoomFormDialogProps> = ({ open, onOpenChange, roo
       capacity: room?.capacity || 1,
       facilities: room?.facilities || "",
       availableTimeStart: room?.available_time?.start || "09:00",
-      availableTimeEnd: room?.available_time?.end || "17:00",
+      availableTimeEnd: room?.available_time?.end || "18:00", // Changed from 17:00 to 18:00
       color: room?.color || generateRandomColor(),
     },
   });
@@ -73,7 +73,7 @@ const RoomFormDialog: React.FC<RoomFormDialogProps> = ({ open, onOpenChange, roo
         capacity: room.capacity || 1,
         facilities: room.facilities || "",
         availableTimeStart: room.available_time?.start || "09:00",
-        availableTimeEnd: room.available_time?.end || "17:00",
+        availableTimeEnd: room.available_time?.end || "18:00", // Changed from 17:00 to 18:00
         color: room.color || generateRandomColor(),
         imageFile: undefined, // Clear file input on edit
       });
@@ -85,7 +85,7 @@ const RoomFormDialog: React.FC<RoomFormDialogProps> = ({ open, onOpenChange, roo
         capacity: 1,
         facilities: "",
         availableTimeStart: "09:00",
-        availableTimeEnd: "17:00",
+        availableTimeEnd: "18:00", // Changed from 17:00 to 18:00
         color: generateRandomColor(),
         imageFile: undefined,
       });

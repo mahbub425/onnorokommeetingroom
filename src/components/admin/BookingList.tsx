@@ -11,7 +11,7 @@ import { Search, Eye, Edit, Trash2, CalendarIcon } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, parseISO } from "date-fns"; // Removed subMonths
+import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { DateRange } from "react-day-picker";
 import BookingDetailsDialog from "@/components/BookingDetailsDialog";
@@ -84,8 +84,26 @@ const BookingList = () => {
     if (filterDateRange.to) {
       query = query.lte('date', format(filterDateRange.to, 'yyyy-MM-dd'));
     }
+    
     if (searchQuery) {
-      query = query.or(`title.ilike.%${searchQuery}%,profiles.name.ilike.%${searchQuery}%,profiles.pin.ilike.%${searchQuery}%,profiles.department.ilike.%${searchQuery}%`);
+      const trimmedSearchQuery = searchQuery.trim();
+      if (trimmedSearchQuery) {
+        // Construct each ILIKE condition separately
+        const titleCondition = `title.ilike.%${trimmedSearchQuery}%`;
+        const nameCondition = `profiles.name.ilike.%${trimmedSearchQuery}%`;
+        const pinCondition = `profiles.pin.ilike.%${trimmedSearchQuery}%`;
+        const departmentCondition = `profiles.department.ilike.%${trimmedSearchQuery}%`;
+
+        // Join them with commas to form the OR clause string
+        const orConditionString = [
+          titleCondition,
+          nameCondition,
+          pinCondition,
+          departmentCondition
+        ].join(',');
+
+        query = query.or(orConditionString);
+      }
     }
 
     const { data, error, count } = await query
@@ -377,8 +395,8 @@ const BookingList = () => {
           onOpenChange={setIsEditFormOpen}
           room={selectedRoomForBooking}
           selectedDate={parseISO(editingBooking?.date || format(new Date(), 'yyyy-MM-dd'))}
-          initialStartTime={editingBooking?.start_time.substring(0,5) || undefined}
-          initialEndTime={editingBooking?.end_time.substring(0,5) || undefined}
+          initialStartTime={editingBooking ? editingBooking.start_time.substring(0,5) : undefined}
+          initialEndTime={editingBooking ? editingBooking.end_time.substring(0,5) : undefined}
           existingBooking={editingBooking}
           onBookingSuccess={handleBookingOperationSuccess}
           userId={session.user.id}

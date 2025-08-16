@@ -49,7 +49,18 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       setTotalUsers(usersCount || 0);
     }
 
-    // Fetch Bookings data for cards and charts
+    // Fetch ALL Bookings for the "Total Bookings" card (unfiltered count)
+    const { count: allBookingsCount, error: allBookingsError } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact' });
+
+    if (allBookingsError) {
+      toast({ title: "Error", description: "Failed to fetch overall total bookings.", variant: "destructive" });
+    } else {
+      setTotalBookings(allBookingsCount || 0);
+    }
+
+    // Fetch Bookings data for charts and "Today's Bookings" (filtered data)
     let query = supabase.from('bookings').select(`
       *,
       profiles (
@@ -72,15 +83,14 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       query = query.lte('date', format(filterDateRange.to, 'yyyy-MM-dd'));
     }
 
-    const { data: bookings, error: bookingsError, count: filteredBookingsCount } = await query.order('date', { ascending: true });
+    const { data: bookings, error: bookingsError } = await query.order('date', { ascending: true });
 
     if (bookingsError) {
-      toast({ title: "Error", description: "Failed to fetch bookings data.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to fetch filtered bookings data.", variant: "destructive" });
     } else {
       setBookingsData(bookings || []);
-      setTotalBookings(filteredBookingsCount || 0);
-
-      // Calculate Today's Bookings from the fetched data (if date range includes today)
+      
+      // Calculate Today's Bookings from the fetched filtered data
       const today = format(new Date(), 'yyyy-MM-dd');
       const countToday = bookings?.filter(b => b.date === today).length || 0;
       setTodaysBookings(countToday);

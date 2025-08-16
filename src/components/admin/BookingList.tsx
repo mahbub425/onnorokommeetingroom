@@ -85,24 +85,35 @@ const BookingList = () => {
       query = query.lte('date', format(filterDateRange.to, 'yyyy-MM-dd'));
     }
     
-    if (searchQuery) {
-      const trimmedSearchQuery = searchQuery.trim();
-      if (trimmedSearchQuery) {
-        // Construct each ILIKE condition separately
-        const titleCondition = `title.ilike.%${trimmedSearchQuery}%`;
-        const nameCondition = `profiles.name.ilike.%${trimmedSearchQuery}%`;
-        const pinCondition = `profiles.pin.ilike.%${trimmedSearchQuery}%`;
-        const departmentCondition = `profiles.department.ilike.%${trimmedSearchQuery}%`;
+    const trimmedSearchQuery = searchQuery.trim();
+    if (trimmedSearchQuery) {
+      // Step 1: Search in profiles table for matching users
+      const { data: matchingProfiles, error: profileSearchError } = await supabase
+        .from('profiles')
+        .select('id')
+        .or(`name.ilike.%${trimmedSearchQuery}%,pin.ilike.%${trimmedSearchQuery}%,department.ilike.%${trimmedSearchQuery}%,designation.ilike.%${trimmedSearchQuery}%`);
 
-        // Join them with commas to form the OR clause string
-        const orConditionString = [
-          titleCondition,
-          nameCondition,
-          pinCondition,
-          departmentCondition
-        ].join(',');
+      if (profileSearchError) {
+        toast({
+          title: "Error searching users",
+          description: profileSearchError.message,
+          variant: "destructive",
+        });
+        setBookings([]);
+        setTotalBookingsCount(0);
+        return; // Stop execution if profile search fails
+      }
 
-        query = query.or(orConditionString);
+      const userIdsFromSearch = matchingProfiles?.map(p => p.id) || [];
+
+      // Step 2: Apply filters to bookings query
+      // Combine title search with user_id search.
+      if (userIdsFromSearch.length > 0) {
+        // If there are matching user IDs, create an OR condition for title OR user_id
+        query = query.or(`title.ilike.%${trimmedSearchQuery}%,user_id.in.(${userIdsFromSearch.join(',')})`);
+      } else {
+        // If no user IDs matched, but there's a search query, only search by title
+        query = query.ilike('title', `%${trimmedSearchQuery}%`);
       }
     }
 

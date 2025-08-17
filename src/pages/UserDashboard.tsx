@@ -338,18 +338,7 @@ const UserDashboard = () => {
             selected={selectedDate}
             onSelect={setSelectedDate}
           />
-          {/* Date range display below calendar */}
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-            {selectedDate ? (
-              <>
-                <span className="font-semibold">{format(selectedDate, "MMM d, yyyy")}</span>
-                {" - "}
-                <span className="font-semibold">{format(addDays(selectedDate, 6), "MMM d, yyyy")}</span> {/* Assuming a 7-day week display */}
-              </>
-            ) : (
-              "Select a date"
-            )}
-          </div>
+          {/* Removed Date range display below calendar */}
           <div className="space-y-2">
             <Label htmlFor="layout-filter">Layout View</Label>
             <Select value={layout} onValueChange={(value: "daily" | "weekly") => saveUserPreference(value)}>

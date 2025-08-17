@@ -17,8 +17,8 @@ interface WeeklyRoomDetailsDialogProps {
   onViewBooking: (booking: Booking) => void;
 }
 
-// Helper to generate 15-minute time slots based on room's available time
-const generateDynamic15MinSlots = (room: Room) => {
+// Helper to generate 30-minute time slots based on room's available time
+const generateDynamic30MinSlots = (room: Room) => {
   const slots = [];
   const start = room.available_time?.start || "00:00";
   const end = room.available_time?.end || "23:59";
@@ -26,9 +26,10 @@ const generateDynamic15MinSlots = (room: Room) => {
   let currentTime = parseISO(`2000-01-01T${start}:00`);
   const endTime = parseISO(`2000-01-01T${end}:00`);
 
+  // Ensure the loop includes the end time if it's on a 30-minute boundary
   while (isBefore(currentTime, endTime) || isSameDay(currentTime, endTime)) {
     slots.push(format(currentTime, "HH:mm"));
-    currentTime = addMinutes(currentTime, 15); // 15-minute interval
+    currentTime = addMinutes(currentTime, 30);
   }
   return slots;
 };
@@ -76,7 +77,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   const roomBookings = dailyBookingsForSelectedRoomAndDate;
 
   // Generate dynamic time slots and hourly labels based on room's available time
-  const dynamic15MinSlots = room ? generateDynamic15MinSlots(room) : [];
+  const dynamic30MinSlots = room ? generateDynamic30MinSlots(room) : [];
   const dynamicHourlyLabels = room ? generateDynamicHourlyLabels(room) : [];
 
   useEffect(() => {
@@ -87,9 +88,9 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   const handleEmptySlotClick = (slotTime: string) => {
     if (!room || !selectedDate) return;
 
-    const isPastSelectedDateInHandler = isBefore(startOfDay(selectedDate || new Date()), startOfDay(new Date()));
+    const isPastSelectedDate = isBefore(startOfDay(selectedDate || new Date()), startOfDay(new Date()));
     
-    if (isPastSelectedDateInHandler) {
+    if (isPastSelectedDate) {
       toast({
         title: "Booking Not Allowed",
         description: "Cannot book for past dates.",
@@ -98,7 +99,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
       return;
     }
 
-    // Check if the clicked 15-min slot is within the room's available time
+    // Check if the clicked 30-min slot is within the room's available time
     const slotStartMinutes = timeToMinutes(slotTime);
     const roomStartMinutes = room.available_time ? timeToMinutes(room.available_time.start) : 0;
     const roomEndMinutes = room.available_time ? timeToMinutes(room.available_time.end) : (24 * 60);
@@ -225,32 +226,26 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
           <div className="grid grid-cols-[60px_1fr] border border-gray-200 dark:border-gray-700 rounded-md relative min-w-[500px]">
             {/* Left Column: Time Labels (fixed height, aligns with hourly cells) */}
             <div className="flex flex-col">
-              {dynamic15MinSlots.map((slotTime, index) => { // Use dynamic15MinSlots for height calculation
-                const isHourlyMark = parseInt(slotTime.substring(3,5)) === 0; // Check if it's on the hour
-                return (
-                  <div
-                    key={`time-label-${slotTime}`}
-                    className={cn(
-                      "h-[15px] flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-r border-gray-200 dark:border-gray-700 last:border-b-0",
-                      isHourlyMark ? "font-semibold" : "text-[10px]" // Make hourly labels bolder
-                    )}
-                  >
-                    {isHourlyMark ? format(parseISO(`2000-01-01T${slotTime}:00`), "h a") : ""}
-                  </div>
-                );
-              })}
+              {dynamicHourlyLabels.map((label, _index) => (
+                <div
+                  key={`time-label-${label}`}
+                  className="h-[60px] flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-r border-gray-200 dark:border-gray-700 last:border-b-0"
+                >
+                  {label}
+                </div>
+              ))}
             </div>
 
             {/* Right Column: Booking Slots and Empty Cells */}
             <div className="relative flex-1">
-              {dynamic15MinSlots.map((slotTime, index) => {
+              {dynamic30MinSlots.map((slotTime, index) => {
                 const slotStartDateTime = parseISO(`2000-01-01T${slotTime}:00`);
 
-                // Determine if this 15-min slot is covered by any booking
+                // Determine if this 30-min slot is covered by any booking
                 const coveringBooking = roomBookings.find(booking => {
                   const existingBookingStart = parseISO(`2000-01-01T${booking.start_time}`);
                   const existingBookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
-                  const slotEndDateTime = addMinutes(slotStartDateTime, 15); // Check for 15-min slot coverage
+                  const slotEndDateTime = addMinutes(slotStartDateTime, 30);
                   return isBefore(slotStartDateTime, existingBookingEnd) && isAfter(slotEndDateTime, existingBookingStart);
                 });
 
@@ -262,11 +257,11 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                     <div
                       key={`empty-slot-${slotTime}`}
                       className={cn(
-                        "h-[15px] flex items-center justify-center p-1 border-b border-gray-200 dark:border-gray-700 last:border-b-0",
+                        "h-[30px] flex items-center justify-center p-1 border-b border-gray-200 dark:border-gray-700 last:border-b-0",
                         canBookSlot ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60"
                       )}
                       onClick={canBookSlot ? () => handleEmptySlotClick(slotTime) : undefined}
-                      style={{ top: `${index * 15}px`, position: 'absolute', left: 0, right: 0 }}
+                      style={{ top: `${index * 30}px`, position: 'absolute', left: 0, right: 0 }}
                     >
                       <Plus className={cn("h-5 w-5 text-gray-400", canBookSlot ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />
                     </div>
@@ -280,13 +275,13 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                 const bookingStart = parseISO(`2000-01-01T${booking.start_time}`);
                 const bookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
                 const durationMinutes = differenceInMinutes(bookingEnd, bookingStart);
-                const heightPx = (durationMinutes / 15) * 15; // Each 15-min slot is 15px high
+                const heightPx = (durationMinutes / 30) * 30; // Each 30-min slot is 30px high
 
                 // Calculate top position based on the start time relative to the first dynamic slot
-                const firstSlotTime = dynamic15MinSlots[0];
+                const firstSlotTime = dynamic30MinSlots[0];
                 const firstSlotStart = parseISO(`2000-01-01T${firstSlotTime}:00`);
                 const offsetMinutes = differenceInMinutes(bookingStart, firstSlotStart);
-                const topPx = (offsetMinutes / 15) * 15;
+                const topPx = (offsetMinutes / 30) * 30;
 
                 return (
                   <div

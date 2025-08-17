@@ -1,0 +1,1 @@
+CREATE TYPE public.repeat_type_enum AS ENUM ('no_repeat', 'daily', 'weekly', 'monthly', 'custom');

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay } from "date-fns";
 import { Plus } from "lucide-react";
 import { Room, Booking } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";

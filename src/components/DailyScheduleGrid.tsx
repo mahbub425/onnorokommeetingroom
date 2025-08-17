@@ -141,12 +141,16 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                   const slotStartDateTime = parseISO(`2000-01-01T${slotTime}:00`);
                   const slotEndDateTime = addMinutes(slotStartDateTime, 30);
 
-                  // Check if this 30-min slot is covered by ANY booking (regardless of its start time)
-                  const isCoveredByBooking = dailyBookings.some((booking: Booking) => {
+                  // Check if this 30-min slot is occupied for clickability
+                  // A slot is occupied for clickability if a booking starts exactly at this slot
+                  // OR if this slot is fully contained within an existing booking.
+                  const isSlotOccupiedForClickability = dailyBookings.some((booking: Booking) => {
                     const bookingStart = parseISO(`2000-01-01T${booking.start_time}`);
                     const bookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
-                    // Check for overlap: (slotStart < bookingEnd) && (slotEnd > bookingStart)
-                    return isBefore(slotStartDateTime, bookingEnd) && isAfter(slotEndDateTime, bookingStart);
+                    return (
+                      (bookingStart.getTime() === slotStartDateTime.getTime()) || // Booking starts exactly here
+                      (isBefore(bookingStart, slotStartDateTime) && isAfter(bookingEnd, slotEndDateTime)) // Slot is fully contained within a booking
+                    );
                   });
 
                   const canBook = !isPastDate; // Only prevent booking for past dates
@@ -156,12 +160,12 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                       key={`${room.id}-bg-slot-${slotTime}`}
                       className={cn(
                         "h-full flex items-center justify-center p-1 border-r border-b border-gray-200 dark:border-gray-700 last:border-r-0",
-                        isCoveredByBooking ? "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60" : (canBook ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60")
+                        isSlotOccupiedForClickability ? "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60" : (canBook ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60")
                       )}
-                      onClick={!isCoveredByBooking && canBook ? () => onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm")) : undefined}
+                      onClick={!isSlotOccupiedForClickability && canBook ? () => onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm")) : undefined}
                       style={{ gridColumn: `span 1` }} // Each empty slot is 30 minutes, spans 1 grid column
                     >
-                      {!isCoveredByBooking && <Plus className={cn("h-5 w-5 text-gray-400", canBook ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />}
+                      {!isSlotOccupiedForClickability && <Plus className={cn("h-5 w-5 text-gray-400", canBook ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />}
                     </div>
                   );
                 })}
@@ -194,7 +198,7 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                       <div
                         key={`${room.id}-${booking.id}`}
                         className="h-full flex flex-col items-center justify-center p-2 rounded-md text-white cursor-pointer transition-colors duration-200 overflow-hidden absolute"
-                        onClick={() => onViewBooking(booking)}
+                        onClick={(e) => { e.stopPropagation(); onViewBooking(booking); }} // Stop propagation
                         style={{
                           backgroundColor: room.color || "#888",
                           left: `${clampedLeft}%`,

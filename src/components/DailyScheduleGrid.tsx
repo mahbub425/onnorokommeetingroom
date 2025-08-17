@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Room, Booking } from "@/types/database";
-import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay, isSameDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay, isSameDay, setHours, setMinutes } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -53,12 +53,30 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
     const isToday = isSameDay(selectedDate, today);
 
     if (isToday) {
-      const currentHour = new Date().getHours();
-      // Calculate the starting 30-minute slot index for the current hour
-      const initialIndex = currentHour * 2;
+      const now = new Date();
+      const currentMinute = now.getMinutes();
+      let roundedMinute;
+
+      if (currentMinute >= 0 && currentMinute <= 14) {
+        roundedMinute = 0;
+      } else if (currentMinute >= 15 && currentMinute <= 29) {
+        roundedMinute = 15;
+      } else if (currentMinute >= 30 && currentMinute <= 44) {
+        roundedMinute = 30;
+      } else { // 45-59
+        roundedMinute = 45;
+      }
+      const currentRoundedTime = setMinutes(setHours(new Date(), now.getHours()), roundedMinute);
+      
+      // Find the index of the first slot that is not in the past
+      const initialIndex = allDetailedTimeSlots.findIndex(slot => {
+        const slotDateTime = parseISO(`2000-01-01T${slot}:00`);
+        return !isBefore(slotDateTime, currentRoundedTime);
+      });
+
       // Ensure the window doesn't go past the end of the day
       const maxStartIndex = allDetailedTimeSlots.length - 12; // Max index to show last 6 hours
-      setVisibleTimeStartIndex(Math.min(initialIndex, maxStartIndex));
+      setVisibleTimeStartIndex(Math.min(initialIndex !== -1 ? initialIndex : 0, maxStartIndex));
     } else {
       // For past or future dates, default to 9 AM (index 18 for 09:00)
       setVisibleTimeStartIndex(18);
@@ -158,7 +176,7 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                   const slotStartDateTime = parseISO(`2000-01-01T${slotTime}:00`);
                   const slotEndDateTime = addMinutes(slotStartDateTime, 30);
 
-                  // Check if this 30-min slot is occupied for clickability
+                  // Determine if this 30-min slot is occupied for clickability
                   // A slot is occupied for clickability if a booking starts exactly at this slot
                   // OR if this slot is fully contained within an existing booking.
                   const isSlotOccupiedForClickability = dailyBookings.some((booking: Booking) => {
@@ -170,7 +188,23 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                     );
                   });
 
-                  const canBook = !isPastDate; // Only prevent booking for past dates
+                  const now = new Date();
+                  const currentMinute = now.getMinutes();
+                  let roundedMinute;
+                  if (currentMinute >= 0 && currentMinute <= 14) {
+                    roundedMinute = 0;
+                  } else if (currentMinute >= 15 && currentMinute <= 29) {
+                    roundedMinute = 15;
+                  } else if (currentMinute >= 30 && currentMinute <= 44) {
+                    roundedMinute = 30;
+                  } else { // 45-59
+                    roundedMinute = 45;
+                  }
+                  const currentRoundedTime = setMinutes(setHours(new Date(), now.getHours()), roundedMinute);
+
+                  const isPastTimeOnCurrentDate = isSameDay(selectedDate, new Date()) && isBefore(slotStartDateTime, currentRoundedTime);
+
+                  const canBook = !isPastDate && !isPastTimeOnCurrentDate; // Combine checks
 
                   return (
                     <div

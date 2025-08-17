@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, parseISO, addMinutes, isBefore, differenceInMinutes, startOfDay, isSameDay, setHours, setMinutes } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, startOfDay, isSameDay, setHours, setMinutes } from "date-fns";
 import { CalendarIcon, Clock, Text, Repeat, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Room, Booking } from "@/types/database";
@@ -133,18 +133,6 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeOptions, setTimeOptions] = useState<string[]>([]);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: "",
-      date: selectedDate,
-      startTime: initialStartTime || "09:00",
-      endTime: initialEndTime || "10:00",
-      repeatType: "no_repeat",
-      remarks: "",
-    },
-  });
 
   useEffect(() => {
     if (room && selectedDate) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay } from "date-fns"; // Added startOfDay
+import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay } from "date-fns";
 import { Plus } from "lucide-react";
 import { Room, Booking } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
@@ -12,7 +12,7 @@ interface WeeklyRoomDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   room: Room | null;
   initialDate: Date;
-  dailyBookingsForSelectedRoomAndDate: Booking[]; // New prop
+  dailyBookingsForSelectedRoomAndDate: Booking[];
   onBookSlot: (roomId: string, date: Date, startTime: string, endTime: string) => void;
   onViewBooking: (booking: Booking) => void;
 }
@@ -68,20 +68,18 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   onOpenChange,
   room,
   initialDate,
-  dailyBookingsForSelectedRoomAndDate, // Destructure new prop
+  dailyBookingsForSelectedRoomAndDate,
   onBookSlot,
   onViewBooking,
 }) => {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
-  // Use the prop directly instead of fetching
   const roomBookings = dailyBookingsForSelectedRoomAndDate;
 
   // Generate dynamic time slots and hourly labels based on room's available time
   const dynamic30MinSlots = room ? generateDynamic30MinSlots(room) : [];
   const dynamicHourlyLabels = room ? generateDynamicHourlyLabels(room) : [];
 
-  // No need for useEffect to fetch bookings here anymore, as they are passed as prop
   useEffect(() => {
     setSelectedDate(initialDate); // Ensure selectedDate updates if initialDate changes
   }, [initialDate]);
@@ -91,10 +89,14 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
     if (!room || !selectedDate) return;
 
     const isPastDate = isBefore(startOfDay(selectedDate), startOfDay(new Date()));
-    if (isPastDate) {
+    const isToday = isSameDay(selectedDate, new Date());
+    const slotStartDateTimeForNow = parseISO(format(selectedDate, 'yyyy-MM-dd') + 'T' + slotTime + ':00');
+    const isPastTimeOnToday = isToday && isBefore(slotStartDateTimeForNow, new Date());
+
+    if (isPastDate || isPastTimeOnToday) {
       toast({
         title: "Booking Not Allowed",
-        description: "Cannot book for past dates.",
+        description: "Cannot book for past dates or times.",
         variant: "destructive",
       });
       return;
@@ -154,8 +156,6 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   const startOfCurrentWeek = startOfWeek(selectedDate || new Date(), { weekStartsOn: 0 }); // Sunday as start of week
   const currentWeekDates = Array.from({ length: 7 }).map((_, i) => addDays(startOfCurrentWeek, i));
   const nextWeekDates = Array.from({ length: 7 }).map((_, i) => addDays(startOfCurrentWeek, 7 + i));
-
-  const isPastSelectedDate = isBefore(startOfDay(selectedDate || new Date()), startOfDay(new Date()));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -250,7 +250,12 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                   return isBefore(slotStartDateTime, existingBookingEnd) && isAfter(slotEndDateTime, existingBookingStart);
                 });
 
-                const canBookSlot = !isPastSelectedDate; // Only allow booking if it's not a past date
+                const isPastSelectedDate = isBefore(startOfDay(selectedDate || new Date()), startOfDay(new Date()));
+                const isToday = isSameDay(selectedDate || new Date(), new Date());
+                const slotStartDateTimeForNow = parseISO(format(selectedDate || new Date(), 'yyyy-MM-dd') + 'T' + slotTime + ':00');
+                const isPastTimeOnToday = isToday && isBefore(slotStartDateTimeForNow, new Date());
+
+                const canBookSlot = !isPastSelectedDate && !isPastTimeOnToday;
 
                 // Only render the background cell if it's NOT covered by a booking
                 if (!coveringBooking) {

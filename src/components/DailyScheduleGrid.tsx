@@ -3,7 +3,7 @@ import { Room, Booking } from "@/types/database";
 import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, isSameDay, startOfDay } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils"; // Added import for cn
+import { cn } from "@/lib/utils";
 
 // Generates 30-minute time slots for the entire day (e.g., "00:00", "00:30", ..., "23:30")
 const generateDetailedTimeSlots = () => {
@@ -191,7 +191,11 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                       return isBefore(bookingStart, slotStartDateTime) && isAfter(bookingEnd, slotStartDateTime);
                     });
 
-                    const canBook = !isPastDate; // Only allow booking if it's not a past date
+                    const isToday = isSameDay(selectedDate, new Date());
+                    const slotStartDateTimeForNow = parseISO(format(selectedDate, 'yyyy-MM-dd') + 'T' + slotTime + ':00');
+                    const isPastTimeOnToday = isToday && isBefore(slotStartDateTimeForNow, new Date());
+
+                    const canBook = !isPastDate && !isPastTimeOnToday; // Combined condition
 
                     if (isCoveredByEarlierBooking) {
                       return null; // This slot is part of an ongoing booking, don't render a separate cell

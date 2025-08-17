@@ -4,7 +4,7 @@ import { useSession } from "@/components/SessionProvider";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/auth";
 import { useNavigate } from "react-router-dom";
-import { Share2, HelpCircle, User as UserIcon, Menu } from "lucide-react";
+import { Share2, HelpCircle, User as UserIcon, Menu } from "lucide-react"; // Added Menu icon
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format, startOfWeek, addDays } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,7 +20,10 @@ import { Room, Booking } from "@/types/database";
 import BookingFormDialog from "@/components/BookingFormDialog";
 import BookingDetailsDialog from "@/components/BookingDetailsDialog";
 import MiniCalendar from "@/components/MiniCalendar";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"; // Import cn
+
+// Import the logo image
+import OnnoRokomLogo from '/placeholder.svg'; // Assuming placeholder.svg is the logo
 
 const UserDashboard = () => {
   const { session, isAdmin, isLoading } = useSession();

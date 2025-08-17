@@ -3,11 +3,39 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import { addDays, addWeeks, addMonths, format, isBefore, parseISO } from 'https://esm.sh/date-fns@3.6.0';
+import { addDays, addWeeks, addMonths, format, isBefore, parseISO, getDay, getDate } from 'https://esm.sh/date-fns@3.6.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// Helper function to check if a date should be excluded for daily repeats
+const isExcludedDate = (date: Date): boolean => {
+  const dayOfWeek = getDay(date); // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
+  const dayOfMonth = getDate(date);
+
+  // Exclude Fridays
+  if (dayOfWeek === 5) {
+    return true;
+  }
+
+  // Exclude Saturdays based on their occurrence in the month
+  if (dayOfWeek === 6) {
+    // First Saturday (1st to 7th of the month)
+    if (dayOfMonth <= 7) {
+      return true;
+    }
+    // Third Saturday (15th to 21st of the month)
+    if (dayOfMonth > 14 && dayOfMonth <= 21) {
+      return true;
+    }
+    // Fourth Saturday (22nd to 28th of the month)
+    if (dayOfMonth > 21 && dayOfMonth <= 28) {
+      return true;
+    }
+  }
+  return false;
 };
 
 serve(async (req: Request) => {
@@ -63,27 +91,36 @@ serve(async (req: Request) => {
       let shouldBook = true;
       let skipReason = "";
 
-      console.log(`Checking for conflicts for proposed booking: Room ${initialBooking.room_id}, Date ${proposedBookingDate}, Time ${initialBooking.start_time}-${initialBooking.end_time}`);
-
-      // Check for conflicts for the proposed repeated booking
-      const { data: conflicts, error: conflictError } = await supabaseClient
-          .from('bookings')
-          .select('id')
-          .eq('room_id', initialBooking.room_id)
-          .eq('date', proposedBookingDate)
-          .filter('start_time', 'lt', initialBooking.end_time)
-          .filter('end_time', 'gt', initialBooking.start_time)
-          .neq('id', initialBooking.id); // Exclude the initial booking itself from conflict check
-
-      if (conflictError) {
-          console.error(`Error checking conflict for ${proposedBookingDate}:`, conflictError.message);
-          shouldBook = false; // Skip this booking due to error
-          skipReason = `Conflict check error: ${conflictError.message}`;
-      } else if (conflicts && conflicts.length > 0) {
-          console.warn(`Skipping repeated booking for ${proposedBookingDate} due to conflict. Existing booking IDs: ${conflicts.map((c: { id: string }) => c.id).join(', ')}`);
-          shouldBook = false; // Skip this booking due to conflict
-          skipReason = `Time slot conflicts with existing booking(s): ${conflicts.map((c: { id: string }) => c.id).join(', ')}`;
+      // Apply daily repeat specific exclusions
+      if (repeatType === 'daily' && isExcludedDate(currentDate)) {
+        shouldBook = false;
+        skipReason = "Excluded date (Friday, 1st, 3rd, or 4th Saturday of the month).";
       }
+
+      if (shouldBook) {
+        console.log(`Checking for conflicts for proposed booking: Room ${initialBooking.room_id}, Date ${proposedBookingDate}, Time ${initialBooking.start_time}-${initialBooking.end_time}`);
+
+        // Check for conflicts for the proposed repeated booking
+        const { data: conflicts, error: conflictError } = await supabaseClient
+            .from('bookings')
+            .select('id')
+            .eq('room_id', initialBooking.room_id)
+            .eq('date', proposedBookingDate)
+            .filter('start_time', 'lt', initialBooking.end_time)
+            .filter('end_time', 'gt', initialBooking.start_time)
+            .neq('id', initialBooking.id); // Exclude the initial booking itself from conflict check
+
+        if (conflictError) {
+            console.error(`Error checking conflict for ${proposedBookingDate}:`, conflictError.message);
+            shouldBook = false; // Skip this booking due to error
+            skipReason = `Conflict check error: ${conflictError.message}`;
+        } else if (conflicts && conflicts.length > 0) {
+            console.warn(`Skipping repeated booking for ${proposedBookingDate} due to conflict. Existing booking IDs: ${conflicts.map((c: { id: string }) => c.id).join(', ')}`);
+            shouldBook = false; // Skip this booking due to conflict
+            skipReason = `Time slot conflicts with existing booking(s): ${conflicts.map((c: { id: string }) => c.id).join(', ')}`;
+        }
+      }
+
 
       if (shouldBook) {
         bookingsToInsert.push({

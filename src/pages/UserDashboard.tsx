@@ -295,13 +295,14 @@ const UserDashboard = () => {
           <span className="text-lg font-semibold">
             {selectedDate ? format(selectedDate, "d MMM yyyy") : "Select a Date"}
           </span>
-          {/* OnnoRokom Group Logo - Moved here */}
-          <div className="flex items-center ml-4"> {/* Added ml-4 for spacing */}
+        </div>
+        {/* Right section: OnnoRokom Group Logo and other icons */}
+        <div className="flex items-center space-x-4">
+          {/* OnnoRokom Group Logo */}
+          <div className="flex items-center">
             <img src={OnnoRokomLogo} alt="OnnoRokom Group" className="h-8 mr-2" />
             <span className="text-xl font-bold text-gray-800 dark:text-gray-200">OnnoRokom Group</span>
           </div>
-        </div>
-        <div className="flex items-center space-x-4">
           <Button variant="ghost" size="icon" onClick={() => window.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "_blank")}>
             <HelpCircle className="h-5 w-5" />
           </Button>

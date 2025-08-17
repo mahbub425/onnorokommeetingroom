@@ -10,17 +10,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, parseISO, isBefore, addMinutes, isSameDay, startOfDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, differenceInMinutes, startOfDay, isSameDay, setHours, setMinutes } from "date-fns";
 import { CalendarIcon, Clock, Text, Repeat, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Room, Booking } from "@/types/database";
 import { cn } from "@/lib/utils";
 
-export const generateTimeOptions = (
+// Helper to convert HH:MM to minutes from midnight
+const timeToMinutes = (timeString: string) => {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+// Helper function to generate filtered time options based on room availability, selected date, and if it's a new booking
+const getFilteredTimeOptions = (
   roomAvailableStart?: string,
-  roomAvailableEnd?: string
+  roomAvailableEnd?: string,
+  selectedDate?: Date,
+  isNewBooking: boolean = true
 ) => {
-  const options = [];
+  const allOptions = [];
   const defaultStart = "00:00";
   const defaultEnd = "23:59";
 
@@ -33,17 +42,37 @@ export const generateTimeOptions = (
   const roomEndTime = parseISO(`2000-01-01T${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`);
 
   while (isBefore(currentTimeSlot, roomEndTime) || isSameDay(currentTimeSlot, roomEndTime)) {
-    options.push(format(currentTimeSlot, "HH:mm"));
+    allOptions.push(format(currentTimeSlot, "HH:mm"));
     currentTimeSlot = addMinutes(currentTimeSlot, 15); // 15-minute interval
   }
-  return options;
+
+  // Apply current time filtering ONLY if it's a new booking and selectedDate is today
+  if (isNewBooking && selectedDate && isSameDay(selectedDate, new Date())) {
+    const now = new Date();
+    const currentMinute = now.getMinutes();
+    let roundedMinute;
+
+    if (currentMinute >= 0 && currentMinute <= 14) {
+      roundedMinute = 0;
+    } else if (currentMinute >= 15 && currentMinute <= 29) {
+      roundedMinute = 15;
+    } else if (currentMinute >= 30 && currentMinute <= 44) {
+      roundedMinute = 30;
+    } else { // 45-59
+      roundedMinute = 45;
+    }
+
+    const currentAvailableTime = setMinutes(setHours(new Date(), now.getHours()), roundedMinute);
+    
+    return allOptions.filter(time => {
+      const optionDateTime = parseISO(`2000-01-01T${time}:00`);
+      return !isBefore(optionDateTime, currentAvailableTime);
+    });
+  }
+
+  return allOptions;
 };
 
-// Helper to convert HH:MM to minutes from midnight
-const timeToMinutes = (timeString: string) => {
-  const [hours, minutes] = timeString.split(':').map(Number);
-  return hours * 60 + minutes;
-};
 
 const formSchema = z.object({
   title: z.string().min(1, "Meeting title is required"),
@@ -118,36 +147,69 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
   });
 
   useEffect(() => {
-    if (room) {
-      setTimeOptions(generateTimeOptions(room.available_time?.start, room.available_time?.end));
+    if (room && selectedDate) {
+      const isNew = !existingBooking;
+      const options = getFilteredTimeOptions(
+        room.available_time?.start,
+        room.available_time?.end,
+        selectedDate,
+        isNew
+      );
+      setTimeOptions(options);
+
+      if (isNew && options.length > 0) {
+        form.setValue("startTime", initialStartTime || options[0]);
+        const defaultEndTime = format(addMinutes(parseISO(`2000-01-01T${options[0]}:00`), 60), "HH:mm");
+        form.setValue("endTime", initialEndTime || defaultEndTime);
+      }
     } else {
-      setTimeOptions(generateTimeOptions());
+      setTimeOptions(getFilteredTimeOptions());
     }
-  }, [room]);
+  }, [room, selectedDate, initialStartTime, initialEndTime, existingBooking, form]);
 
   useEffect(() => {
     if (open && room) {
+      const isNew = !existingBooking;
+      const currentFilteredTimeOptions = getFilteredTimeOptions(
+        room.available_time?.start,
+        room.available_time?.end,
+        selectedDate,
+        isNew
+      );
+      setTimeOptions(currentFilteredTimeOptions);
+
       if (existingBooking) {
-        // Edit mode: populate form with existing booking data
         form.reset({
           title: existingBooking.title,
           date: parseISO(existingBooking.date),
-          startTime: existingBooking.start_time.substring(0, 5), // HH:MM
-          endTime: existingBooking.end_time.substring(0, 5),     // HH:MM
-          repeatType: "no_repeat", // Assuming repeats are handled separately or not editable via this form for simplicity
+          startTime: existingBooking.start_time.substring(0, 5),
+          endTime: existingBooking.end_time.substring(0, 5),
+          repeatType: "no_repeat",
           remarks: existingBooking.remarks || "",
         });
       } else {
-        // New booking mode: populate with initial values
+        const defaultStartTimeForNewBooking = initialStartTime || (currentFilteredTimeOptions.length > 0 ? currentFilteredTimeOptions[0] : "09:00");
+        const defaultEndTimeForNewBooking = initialEndTime || (currentFilteredTimeOptions.length > 0 ? format(addMinutes(parseISO(`2000-01-01T${defaultStartTimeForNewBooking}:00`), 60), "HH:mm") : "10:00");
+
         form.reset({
           title: "",
           date: selectedDate,
-          startTime: initialStartTime || "09:00",
-          endTime: initialEndTime || "10:00",
+          startTime: defaultStartTimeForNewBooking,
+          endTime: defaultEndTimeForNewBooking,
           repeatType: "no_repeat",
           remarks: "",
         });
       }
+    } else if (open && !room) {
+      setTimeOptions(getFilteredTimeOptions());
+      form.reset({
+        title: "",
+        date: selectedDate,
+        startTime: initialStartTime || "09:00",
+        endTime: initialEndTime || "10:00",
+        repeatType: "no_repeat",
+        remarks: "",
+      });
     }
   }, [open, room, selectedDate, initialStartTime, initialEndTime, existingBooking, form]);
 

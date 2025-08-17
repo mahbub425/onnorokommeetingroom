@@ -243,6 +243,8 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                 const slotEndDateTime = addMinutes(slotStartDateTime, 30);
 
                 // Determine if this 30-min slot is occupied for clickability
+                // A slot is occupied for clickability if a booking starts exactly at this slot
+                // OR if this slot is fully contained within an existing booking.
                 const isSlotOccupiedForClickability = roomBookings.some(booking => {
                   const bookingStart = parseISO(`2000-01-01T${booking.start_time}`);
                   const bookingEnd = parseISO(`2000-01-01T${booking.end_time}`);

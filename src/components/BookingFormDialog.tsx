@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, parseISO, isBefore, addMinutes, isSameDay, startOfDay, isAfter } from "date-fns";
+import { format, parseISO, isBefore, addMinutes, isSameDay } from "date-fns";
 import { CalendarIcon, Clock, Text, Repeat, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Room, Booking } from "@/types/database";
@@ -18,9 +18,7 @@ import { cn } from "@/lib/utils";
 
 export const generateTimeOptions = (
   roomAvailableStart?: string,
-  roomAvailableEnd?: string,
-  selectedDate?: Date,
-  currentDate?: Date
+  roomAvailableEnd?: string
 ) => {
   const options = [];
   const defaultStart = "00:00";
@@ -34,22 +32,9 @@ export const generateTimeOptions = (
   let currentTimeSlot = parseISO(`2000-01-01T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00`);
   const roomEndTime = parseISO(`2000-01-01T${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`);
 
-  const now = currentDate || new Date();
-  const isToday = selectedDate && isSameDay(selectedDate, now);
-
   while (isBefore(currentTimeSlot, roomEndTime) || isSameDay(currentTimeSlot, roomEndTime)) {
-    const formattedTime = format(currentTimeSlot, "HH:mm");
-
-    if (isToday) {
-      const slotDateTime = parseISO(format(selectedDate, 'yyyy-MM-dd') + 'T' + formattedTime + ':00');
-      if (isBefore(slotDateTime, now)) {
-        currentTimeSlot = addMinutes(currentTimeSlot, 15);
-        continue;
-      }
-    }
-
-    options.push(formattedTime);
-    currentTimeSlot = addMinutes(currentTimeSlot, 15);
+    options.push(format(currentTimeSlot, "HH:mm"));
+    currentTimeSlot = addMinutes(currentTimeSlot, 30);
   }
   return options;
 };
@@ -83,25 +68,6 @@ const formSchema = z.object({
 }, {
   message: "End date is required for custom repeat",
   path: ["endDate"],
-}).refine((data) => {
-  // Cannot book for past dates
-  const today = startOfDay(new Date());
-  const selected = startOfDay(data.date);
-  return isSameDay(selected, today) || isBefore(today, selected); // Allow today or future dates
-}, {
-  message: "Cannot book for past dates",
-  path: ["date"],
-}).refine((data) => {
-  const now = new Date();
-  const selectedDateTime = parseISO(format(data.date, 'yyyy-MM-dd') + 'T' + data.startTime + ':00');
-  // If it's today, ensure the selected start time is not in the past
-  if (isSameDay(data.date, now)) {
-    return isAfter(selectedDateTime, now) || isSameDay(selectedDateTime, now); // Allow current time or future
-  }
-  return true;
-}, {
-  message: "Cannot book for past times on the current date",
-  path: ["startTime"],
 });
 
 interface BookingFormDialogProps {
@@ -145,34 +111,11 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
 
   useEffect(() => {
     if (room) {
-      setTimeOptions(generateTimeOptions(room.available_time?.start, room.available_time?.end, form.watch("date"), new Date()));
+      setTimeOptions(generateTimeOptions(room.available_time?.start, room.available_time?.end));
     } else {
-      setTimeOptions(generateTimeOptions(undefined, undefined, form.watch("date"), new Date()));
+      setTimeOptions(generateTimeOptions());
     }
-    
-    // Also adjust start/end times if the selected date changes and current times are invalid
-    const currentStartTime = form.getValues("startTime");
-    const currentEndTime = form.getValues("endTime");
-    const now = new Date();
-    const isToday = isSameDay(form.watch("date"), now);
-
-    if (isToday) {
-      const currentStartDateTime = parseISO(format(form.watch("date"), 'yyyy-MM-dd') + 'T' + currentStartTime + ':00');
-      if (isBefore(currentStartDateTime, now)) {
-        // Find the first valid time slot and set it
-        const validOptions = generateTimeOptions(room?.available_time?.start, room?.available_time?.end, form.watch("date"), new Date());
-        if (validOptions.length > 0) {
-          form.setValue("startTime", validOptions[0]);
-          // Also adjust end time if it's now before start time
-          const newStartTimeDate = parseISO(`2000-01-01T${validOptions[0]}:00`);
-          const currentEndTimeDate = parseISO(`2000-01-01T${currentEndTime}:00`);
-          if (isBefore(currentEndTimeDate, newStartTimeDate)) {
-            form.setValue("endTime", format(addMinutes(newStartTimeDate, 60), "HH:mm"));
-          }
-        }
-      }
-    }
-  }, [room, form.watch("date"), form]); // Re-run when room or selected date changes
+  }, [room]);
 
   useEffect(() => {
     if (open && room) {
@@ -391,7 +334,6 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
                   selected={form.watch("date")}
                   onSelect={(date) => form.setValue("date", date!)}
                   initialFocus
-                  disabled={(date) => isBefore(date, startOfDay(new Date()))} // Disable past dates
                 />
               </PopoverContent>
             </Popover>
@@ -481,7 +423,6 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
                         selected={form.watch("endDate")}
                         onSelect={(date) => form.setValue("endDate", date!)}
                         initialFocus
-                        disabled={(date) => isBefore(date, startOfDay(new Date()))} // Disable past dates
                       />
                     </PopoverContent>
                   </Popover>

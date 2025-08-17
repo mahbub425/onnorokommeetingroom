@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Room, Booking } from "@/types/database";
-import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, isSameDay, startOfDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, isSameDay } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -69,8 +69,6 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
       booking.room_id === roomId && booking.date === formattedSelectedDate
     ).sort((a: Booking, b: Booking) => a.start_time.localeCompare(b.start_time));
   };
-
-  const isPastDate = isBefore(startOfDay(selectedDate), startOfDay(new Date()));
 
   return (
     <div className="overflow-x-auto">
@@ -191,12 +189,6 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                       return isBefore(bookingStart, slotStartDateTime) && isAfter(bookingEnd, slotStartDateTime);
                     });
 
-                    const isToday = isSameDay(selectedDate, new Date());
-                    const slotStartDateTimeForNow = parseISO(format(selectedDate, 'yyyy-MM-dd') + 'T' + slotTime + ':00');
-                    const isPastTimeOnToday = isToday && isBefore(slotStartDateTimeForNow, new Date());
-
-                    const canBook = !isPastDate && !isPastTimeOnToday; // Combined condition
-
                     if (isCoveredByEarlierBooking) {
                       return null; // This slot is part of an ongoing booking, don't render a separate cell
                     }
@@ -207,11 +199,11 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                         key={`${room.id}-${slotTime}`}
                         className={cn(
                           "h-full flex items-center justify-center p-1 border-r border-b border-gray-200 dark:border-gray-700 last:border-r-0",
-                          canBook ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60"
+                          "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer"
                         )}
-                        onClick={canBook ? () => onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm")) : undefined}
+                        onClick={() => onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm"))}
                       >
-                        <Plus className={cn("h-5 w-5 text-gray-400", canBook ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />
+                        <Plus className={cn("h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity")} />
                       </div>
                     );
                   }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes } from "date-fns";
 import { Plus } from "lucide-react";
 import { Room, Booking } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
@@ -87,20 +87,6 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
 
   const handleEmptySlotClick = (slotTime: string) => {
     if (!room || !selectedDate) return;
-
-    const isPastDate = isBefore(startOfDay(selectedDate), startOfDay(new Date()));
-    const isToday = isSameDay(selectedDate, new Date());
-    const slotStartDateTimeForNow = parseISO(format(selectedDate, 'yyyy-MM-dd') + 'T' + slotTime + ':00');
-    const isPastTimeOnToday = isToday && isBefore(slotStartDateTimeForNow, new Date());
-
-    if (isPastDate || isPastTimeOnToday) {
-      toast({
-        title: "Booking Not Allowed",
-        description: "Cannot book for past dates or times.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     // Check if the clicked 30-min slot is within the room's available time
     const slotStartMinutes = timeToMinutes(slotTime);
@@ -250,13 +236,6 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                   return isBefore(slotStartDateTime, existingBookingEnd) && isAfter(slotEndDateTime, existingBookingStart);
                 });
 
-                const isPastSelectedDate = isBefore(startOfDay(selectedDate || new Date()), startOfDay(new Date()));
-                const isToday = isSameDay(selectedDate || new Date(), new Date());
-                const slotStartDateTimeForNow = parseISO(format(selectedDate || new Date(), 'yyyy-MM-dd') + 'T' + slotTime + ':00');
-                const isPastTimeOnToday = isToday && isBefore(slotStartDateTimeForNow, new Date());
-
-                const canBookSlot = !isPastSelectedDate && !isPastTimeOnToday;
-
                 // Only render the background cell if it's NOT covered by a booking
                 if (!coveringBooking) {
                   return (
@@ -264,12 +243,12 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                       key={`empty-slot-${slotTime}`}
                       className={cn(
                         "h-[30px] flex items-center justify-center p-1 border-b border-gray-200 dark:border-gray-700 last:border-b-0",
-                        canBookSlot ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60"
+                        "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer"
                       )}
-                      onClick={canBookSlot ? () => handleEmptySlotClick(slotTime) : undefined}
+                      onClick={() => handleEmptySlotClick(slotTime)}
                       style={{ top: `${index * 30}px`, position: 'absolute', left: 0, right: 0 }}
                     >
-                      <Plus className={cn("h-5 w-5 text-gray-400", canBookSlot ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />
+                      <Plus className={cn("h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity")} />
                     </div>
                   );
                 }

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, parseISO, addMinutes, isBefore, startOfDay, isAfter, isSameDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, startOfDay, isSameDay } from "date-fns";
 import { CalendarIcon, Clock, Text, Repeat, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Room, Booking } from "@/types/database";
@@ -22,11 +22,10 @@ const timeToMinutes = (timeString: string) => {
   return hours * 60 + minutes;
 };
 
-// Helper function to generate filtered time options based on room availability and current time
-const getFilteredTimeOptions = (
+// Helper function to generate all 15-minute time options within room's available time
+const getAllTimeOptionsForRoom = (
   roomAvailableStart?: string,
-  roomAvailableEnd?: string,
-  selectedDateForBooking?: Date // New parameter
+  roomAvailableEnd?: string
 ) => {
   const allOptions = [];
   const defaultStart = "00:00";
@@ -40,33 +39,8 @@ const getFilteredTimeOptions = (
   let currentTimeSlot = parseISO(`2000-01-01T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00`);
   const roomEndTime = parseISO(`2000-01-01T${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`);
 
-  const now = new Date();
-  const isToday = selectedDateForBooking ? isSameDay(selectedDateForBooking, now) : false;
-
-  // Calculate the current time rounded up to the nearest 15 minutes
-  let currentMinutes = now.getHours() * 60 + now.getMinutes();
-  let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
-  // Cap at 23:45 if rounding goes to next day
-  if (roundedCurrentMinutes >= 24 * 60) {
-    roundedCurrentMinutes = 23 * 60 + 45;
-  }
-  const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
-  const roundedCurrentMinute = roundedCurrentMinutes % 60;
-  const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
-  const roundedCurrentTime = parseISO(`2000-01-01T${roundedCurrentTimeStr}:00`);
-
   while (isBefore(currentTimeSlot, roomEndTime) || isSameDay(currentTimeSlot, roomEndTime)) {
-    const slotTimeStr = format(currentTimeSlot, "HH:mm");
-    
-    // If it's today, only add slots that are at or after the rounded current time
-    if (isToday) {
-      if (isAfter(currentTimeSlot, roundedCurrentTime) || isSameDay(currentTimeSlot, roundedCurrentTime)) {
-        allOptions.push(slotTimeStr);
-      }
-    } else {
-      // For future dates, add all slots within room's available time
-      allOptions.push(slotTimeStr);
-    }
+    allOptions.push(format(currentTimeSlot, "HH:mm"));
     currentTimeSlot = addMinutes(currentTimeSlot, 15); // 15-minute interval
   }
   return allOptions;
@@ -89,14 +63,6 @@ const formSchema = z.object({
   message: "End time must be after start time",
   path: ["endTime"],
 }).refine((data) => {
-  if (data.repeatType === "custom" && !data.endDate) {
-    return false;
-  }
-  return true;
-}, {
-  message: "End date is required for custom repeat",
-  path: ["endDate"],
-}).refine((data) => {
   // Cannot book for past dates
   const today = startOfDay(new Date());
   const selected = startOfDay(data.date);
@@ -104,6 +70,24 @@ const formSchema = z.object({
 }, {
   message: "Cannot book for past dates",
   path: ["date"],
+}).refine((data) => {
+  // Additional validation for start/end times if the date is today
+  const now = new Date();
+  const isToday = isSameDay(data.date, now);
+
+  if (isToday) {
+    const bookingEndDateTime = parseISO(`${format(data.date, 'yyyy-MM-dd')}T${data.endTime}:00`);
+    
+    // A booking is valid if its end time is not in the past relative to now
+    // This means bookingEndDateTime must be >= now.
+    if (isBefore(bookingEndDateTime, now)) {
+      return false; // Booking ends in the past relative to current time
+    }
+  }
+  return true;
+}, {
+  message: "Cannot book for a time slot that has already ended.",
+  path: ["startTime"], // Point to startTime as the primary time field for error display
 });
 
 interface BookingFormDialogProps {
@@ -147,11 +131,10 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
 
   useEffect(() => {
     if (open) {
-      // Determine available time options based on room and selected date
-      const options = getFilteredTimeOptions(
+      // Determine all possible time options based on room's available time
+      const options = getAllTimeOptionsForRoom(
         room?.available_time?.start,
-        room?.available_time?.end,
-        selectedDate
+        room?.available_time?.end
       );
       setTimeOptions(options);
 
@@ -177,6 +160,7 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
         if (isToday) {
           const currentMinutes = now.getHours() * 60 + now.getMinutes();
           let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
+          // Cap at 23:45 if rounding goes to next day
           if (roundedCurrentMinutes >= 24 * 60) {
             roundedCurrentMinutes = 23 * 60 + 45;
           }

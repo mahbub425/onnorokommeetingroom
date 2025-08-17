@@ -240,7 +240,7 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
             is_recurring: values.repeatType !== "no_repeat",
           })
           .select()
-          .single();
+  .single();
 
         if (error) throw error;
 

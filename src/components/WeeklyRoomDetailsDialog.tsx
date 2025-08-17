@@ -113,28 +113,9 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
       return;
     }
 
-    // Check for overlapping bookings for the proposed 1-hour slot (default for new booking)
-    const potentialBookingStart = parseISO(`2000-01-01T${slotTime}:00`);
-    const potentialBookingEnd = addMinutes(potentialBookingStart, 60); // Default to 1-hour slot for new booking
-
-    const hasConflict = roomBookings.some(booking => {
-      const existingBookingStart = parseISO(`2000-01-01T${booking.start_time}`);
-      const existingBookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
-
-      // Check for overlap: (start1 < end2) && (end1 > start2)
-      return isBefore(potentialBookingStart, existingBookingEnd) && isAfter(potentialBookingEnd, existingBookingStart);
-    });
-
-    if (hasConflict) {
-      toast({
-        title: "Booking Conflict",
-        description: "This time slot is already booked for this room.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     // If no conflict and within available time, proceed to book
+    // Pass a default 1-hour end time, user can adjust in the form
+    const potentialBookingEnd = addMinutes(parseISO(`2000-01-01T${slotTime}:00`), 60); 
     onBookSlot(room.id, selectedDate, slotTime, format(potentialBookingEnd, "HH:mm"));
     onOpenChange(false); // Close this dialog after initiating booking
   };

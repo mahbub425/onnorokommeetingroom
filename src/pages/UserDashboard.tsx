@@ -298,10 +298,9 @@ const UserDashboard = () => {
         </div>
         {/* Right section: OnnoRokom Group Logo and other icons */}
         <div className="flex items-center space-x-4">
-          {/* OnnoRokom Group Logo */}
+          {/* OnnoRokom Group Logo - Replaced with image from URL */}
           <div className="flex items-center">
-            <img src={OnnoRokomLogo} alt="OnnoRokom Group" className="h-8 mr-2" />
-            <span className="text-xl font-bold text-gray-800 dark:text-gray-200">OnnoRokom Group</span>
+            <img src="https://i.ibb.co/Q3sjpLbB/Group-427318855.png" alt="OnnoRokom Group Logo" className="h-8" />
           </div>
           <Button variant="ghost" size="icon" onClick={() => window.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "_blank")}>
             <HelpCircle className="h-5 w-5" />

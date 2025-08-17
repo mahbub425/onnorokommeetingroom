@@ -133,50 +133,54 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
           {/* Room Schedule Rows */}
           {rooms.map((room: Room) => {
             const dailyBookings = getBookingsForRoomAndDate(room.id, selectedDate);
-            let slotsToSkip = 0; // Counter for 30-min slots covered by a rendered booking
+            const renderedBookingIds = new Set<string>(); // To track bookings already rendered
 
             return (
-              <div key={room.id} className="grid grid-cols-12 h-24"> {/* Now 12 columns, stretching */}
-                {visibleDetailedTimeSlots.map((slotTime: string, _index: number) => {
-                  if (slotsToSkip > 0) {
-                    slotsToSkip--;
-                    return null; // This slot is covered by a previously rendered booking
-                  }
-
+              <div key={room.id} className="grid grid-cols-12 h-24 relative"> {/* This is the parent for absolute positioning */}
+                {visibleDetailedTimeSlots.map((slotTime: string, index: number) => {
                   const slotStartDateTime = parseISO(`2000-01-01T${slotTime}:00`);
-                  let renderedBooking: Booking | null = null;
-
-                  // Find a booking that starts exactly at this 30-min slot
+                  
+                  let bookingToRender: Booking | null = null;
                   for (const booking of dailyBookings) {
                     const bookingStart = parseISO(`2000-01-01T${booking.start_time}`);
-                    if (isSameDay(bookingStart, slotStartDateTime) && bookingStart.getHours() === slotStartDateTime.getHours() && bookingStart.getMinutes() === slotStartDateTime.getMinutes()) {
-                      renderedBooking = booking;
+                    // Check if booking starts exactly at this slot and hasn't been rendered yet
+                    if (isSameDay(bookingStart, slotStartDateTime) && bookingStart.getHours() === slotStartDateTime.getHours() && bookingStart.getMinutes() === slotStartDateTime.getMinutes() && !renderedBookingIds.has(booking.id)) {
+                      bookingToRender = booking;
                       break;
                     }
                   }
 
-                  if (renderedBooking) {
-                    const bookingStart = parseISO(`2000-01-01T${renderedBooking.start_time}`);
-                    const bookingEnd = parseISO(`2000-01-01T${renderedBooking.end_time}`);
+                  if (bookingToRender) {
+                    const bookingStart = parseISO(`2000-01-01T${bookingToRender.start_time}`);
+                    const bookingEnd = parseISO(`2000-01-01T${bookingToRender.end_time}`);
                     const durationMinutes = differenceInMinutes(bookingEnd, bookingStart);
                     const colSpan = Math.ceil(durationMinutes / 30); // Number of 30-min slots it spans
 
-                    slotsToSkip = colSpan - 1; // Update counter to skip subsequent covered slots
+                    renderedBookingIds.add(bookingToRender.id); // Mark as rendered
+
+                    // Calculate left position and width based on the 12 columns of the grid
+                    // Each column represents one 30-minute slot.
+                    // The 'index' here is the index of the current 30-minute slot within the 'visibleDetailedTimeSlots' array (0-11).
+                    // So, 'index' directly corresponds to the column number.
+                    const leftPercentage = (index / 12) * 100;
+                    const widthPercentage = (colSpan / 12) * 100;
 
                     return (
                       <div
-                        key={`${room.id}-${slotTime}`}
-                        className="h-full flex flex-col items-center justify-center p-2 rounded-md text-white cursor-pointer transition-colors duration-200 overflow-hidden"
-                        onClick={() => onViewBooking(renderedBooking)}
+                        key={`${room.id}-${slotTime}-${bookingToRender.id}`}
+                        className="h-full flex flex-col items-center justify-center p-2 rounded-md text-white cursor-pointer transition-colors duration-200 overflow-hidden absolute"
+                        onClick={() => onViewBooking(bookingToRender)}
                         style={{
                           backgroundColor: room.color || "#888",
-                          gridColumn: `span ${colSpan}`,
+                          left: `${leftPercentage}%`,
+                          width: `${widthPercentage}%`,
+                          zIndex: 10,
                           marginLeft: '4px', // Add some margin to separate cards
                           marginRight: '4px',
                         }}
                       >
                         <span className="font-medium text-center leading-tight text-sm truncate w-full px-1">
-                          {renderedBooking.title}
+                          {bookingToRender.title}
                         </span>
                         <span className="text-xs text-center opacity-90 mt-1">
                           {format(bookingStart, "h:mma")} - {format(bookingEnd, "h:mma")}
@@ -188,14 +192,15 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                     const isCoveredByEarlierBooking = dailyBookings.some((booking: Booking) => {
                       const bookingStart = parseISO(`2000-01-01T${booking.start_time}`);
                       const bookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
-                      return isBefore(bookingStart, slotStartDateTime) && isAfter(bookingEnd, slotStartDateTime);
+                      const slotEndDateTime = addMinutes(slotStartDateTime, 30); // End of the current 30-min slot
+                      return isBefore(bookingStart, slotEndDateTime) && isAfter(bookingEnd, slotStartDateTime);
                     });
-
-                    const canBook = !isPastDate; // Only prevent booking for past dates
 
                     if (isCoveredByEarlierBooking) {
                       return null; // This slot is part of an ongoing booking, don't render a separate cell
                     }
+
+                    const canBook = !isPastDate; // Only prevent booking for past dates
 
                     // Empty slot
                     return (
@@ -206,6 +211,7 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                           canBook ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60"
                         )}
                         onClick={canBook ? () => onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm")) : undefined}
+                        style={{ gridColumn: `span 1` }} // Each empty slot is 30 minutes, spans 1 grid column
                       >
                         <Plus className={cn("h-5 w-5 text-gray-400", canBook ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />
                       </div>

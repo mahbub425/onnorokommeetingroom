@@ -29,7 +29,7 @@ const generateDynamic30MinSlots = (room: Room) => {
   // Ensure the loop includes the end time if it's on a 30-minute boundary
   while (isBefore(currentTime, endTime) || isSameDay(currentTime, endTime)) {
     slots.push(format(currentTime, "HH:mm"));
-    currentTime = addMinutes(currentTime, 30);
+    currentTime = addMinutes(currentTime, 30); // Changed to 30-minute interval
   }
   return slots;
 };
@@ -77,7 +77,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   const roomBookings = dailyBookingsForSelectedRoomAndDate;
 
   // Generate dynamic time slots and hourly labels based on room's available time
-  const dynamic30MinSlots = room ? generateDynamic30MinSlots(room) : [];
+  const dynamic30MinSlots = room ? generateDynamic30MinSlots(room) : []; // Use dynamic30MinSlots
   const dynamicHourlyLabels = room ? generateDynamicHourlyLabels(room) : [];
 
   useEffect(() => {
@@ -238,14 +238,14 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
 
             {/* Right Column: Booking Slots and Empty Cells */}
             <div className="relative flex-1">
-              {dynamic30MinSlots.map((slotTime, index) => {
+              {dynamic30MinSlots.map((slotTime, index) => { // Iterate over 30-min slots
                 const slotStartDateTime = parseISO(`2000-01-01T${slotTime}:00`);
 
                 // Determine if this 30-min slot is covered by any booking
                 const coveringBooking = roomBookings.find(booking => {
                   const existingBookingStart = parseISO(`2000-01-01T${booking.start_time}`);
                   const existingBookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
-                  const slotEndDateTime = addMinutes(slotStartDateTime, 30);
+                  const slotEndDateTime = addMinutes(slotStartDateTime, 30); // Check for 30-min slot coverage
                   return isBefore(slotStartDateTime, existingBookingEnd) && isAfter(slotEndDateTime, existingBookingStart);
                 });
 
@@ -257,11 +257,11 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                     <div
                       key={`empty-slot-${slotTime}`}
                       className={cn(
-                        "h-[30px] flex items-center justify-center p-1 border-b border-gray-200 dark:border-gray-700 last:border-b-0",
+                        "h-[30px] flex items-center justify-center p-1 border-b border-gray-200 dark:border-gray-700 last:border-b-0", // Changed height to 30px
                         canBookSlot ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60"
                       )}
                       onClick={canBookSlot ? () => handleEmptySlotClick(slotTime) : undefined}
-                      style={{ top: `${index * 30}px`, position: 'absolute', left: 0, right: 0 }}
+                      style={{ top: `${index * 30}px`, position: 'absolute', left: 0, right: 0 }} // Changed top calculation to 30px per slot
                     >
                       <Plus className={cn("h-5 w-5 text-gray-400", canBookSlot ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />
                     </div>
@@ -278,10 +278,10 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                 const heightPx = (durationMinutes / 30) * 30; // Each 30-min slot is 30px high
 
                 // Calculate top position based on the start time relative to the first dynamic slot
-                const firstSlotTime = dynamic30MinSlots[0];
+                const firstSlotTime = dynamic30MinSlots[0]; // Use dynamic30MinSlots
                 const firstSlotStart = parseISO(`2000-01-01T${firstSlotTime}:00`);
                 const offsetMinutes = differenceInMinutes(bookingStart, firstSlotStart);
-                const topPx = (offsetMinutes / 30) * 30;
+                const topPx = (offsetMinutes / 30) * 30; // Changed to 30px per slot
 
                 return (
                   <div

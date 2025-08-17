@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Room, Booking } from "@/types/database";
-import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay, isSameDay } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -46,8 +46,25 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
   const allHourlyLabels = generateHourlyLabels(); // Hourly labels for the header (24 labels)
 
   // State to control the visible 6-hour window (index refers to the start of 30-min slots)
-  // 0 = 00:00, 12 = 06:00, 24 = 12:00, 36 = 18:00
-  const [visibleTimeStartIndex, setVisibleTimeStartIndex] = useState(18); // Start at 9 AM (index 18 for 09:00)
+  const [visibleTimeStartIndex, setVisibleTimeStartIndex] = useState(0); // Default to 00:00
+
+  useEffect(() => {
+    const today = startOfDay(new Date());
+    const isToday = isSameDay(selectedDate, today);
+
+    if (isToday) {
+      const currentHour = new Date().getHours();
+      // Calculate the starting 30-minute slot index for the current hour
+      const initialIndex = currentHour * 2;
+      // Ensure the window doesn't go past the end of the day
+      const maxStartIndex = allDetailedTimeSlots.length - 12; // Max index to show last 6 hours
+      setVisibleTimeStartIndex(Math.min(initialIndex, maxStartIndex));
+    } else {
+      // For past or future dates, default to 9 AM (index 18 for 09:00)
+      setVisibleTimeStartIndex(18);
+    }
+  }, [selectedDate, allDetailedTimeSlots.length]);
+
 
   // Calculate the visible 30-minute slots (12 slots for 6 hours)
   const visibleDetailedTimeSlots = allDetailedTimeSlots.slice(visibleTimeStartIndex, visibleTimeStartIndex + 12);

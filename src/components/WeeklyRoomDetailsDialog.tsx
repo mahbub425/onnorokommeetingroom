@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay, setHours, setMinutes } from "date-fns";
 import { Plus } from "lucide-react";
 import { Room, Booking } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
@@ -17,42 +17,71 @@ interface WeeklyRoomDetailsDialogProps {
   onViewBooking: (booking: Booking) => void;
 }
 
-// Helper to generate 30-minute time slots based on room's available time
-const generateDynamic30MinSlots = (room: Room) => {
+// Helper to generate 30-minute time slots based on room's available time and current date
+const generateDynamic30MinSlots = (room: Room, date: Date) => {
   const slots = [];
-  const start = room.available_time?.start || "00:00";
-  const end = room.available_time?.end || "23:59";
+  let startHour = 0;
+  let startMinute = 0;
+  const endHour = parseInt((room.available_time?.end || "23:59").substring(0, 2));
+  const endMinute = parseInt((room.available_time?.end || "23:59").substring(3, 5));
 
-  let currentTime = parseISO(`2000-01-01T${start}:00`);
-  const endTime = parseISO(`2000-01-01T${end}:00`);
+  const today = startOfDay(new Date());
+  const isToday = isSameDay(date, today);
 
-  // Ensure the loop includes the end time if it's on a 30-minute boundary
-  while (isBefore(currentTime, endTime) || isSameDay(currentTime, endTime)) {
-    slots.push(format(currentTime, "HH:mm"));
-    currentTime = addMinutes(currentTime, 30); // Changed to 30-minute interval
+  if (isToday) {
+    const now = new Date();
+    startHour = now.getHours();
+    startMinute = Math.floor(now.getMinutes() / 30) * 30; // Round down to nearest 30 min
+  } else {
+    startHour = parseInt((room.available_time?.start || "00:00").substring(0, 2));
+    startMinute = parseInt((room.available_time?.start || "00:00").substring(3, 5));
+  }
+
+  let currentTimeSlot = setMinutes(setHours(parseISO(`2000-01-01T00:00:00`), startHour), startMinute);
+  const roomEndTime = setMinutes(setHours(parseISO(`2000-01-01T00:00:00`), endHour), endMinute);
+
+  // Ensure currentTimeSlot is not before room's actual available start time
+  const roomActualStartTime = setMinutes(setHours(parseISO(`2000-01-01T00:00:00`), parseInt((room.available_time?.start || "00:00").substring(0, 2))), parseInt((room.available_time?.start || "00:00").substring(3, 5)));
+  if (isBefore(currentTimeSlot, roomActualStartTime)) {
+    currentTimeSlot = roomActualStartTime;
+  }
+
+  while (isBefore(currentTimeSlot, roomEndTime) || isSameDay(currentTimeSlot, roomEndTime)) {
+    slots.push(format(currentTimeSlot, "HH:mm"));
+    currentTimeSlot = addMinutes(currentTimeSlot, 30);
   }
   return slots;
 };
 
-// Helper to generate hourly labels based on room's available time
-const generateDynamicHourlyLabels = (room: Room) => {
+// Helper to generate hourly labels based on room's available time and current date
+const generateDynamicHourlyLabels = (room: Room, date: Date) => {
   const labels = [];
-  const start = room.available_time?.start || "00:00";
-  const end = room.available_time?.end || "23:59";
+  let startHour = 0;
+  const endHour = parseInt((room.available_time?.end || "23:59").substring(0, 2));
+  const endMinute = parseInt((room.available_time?.end || "23:59").substring(3, 5));
 
-  const startHour = parseInt(start.substring(0, 2));
-  const endHour = parseInt(end.substring(0, 2));
-  const endMinute = parseInt(end.substring(3, 5));
+  const today = startOfDay(new Date());
+  const isToday = isSameDay(date, today);
 
-  // The last hour label should correspond to the start of the last full hour available
-  // If end time is 17:00, last label is 4 PM. If end time is 17:30, last label is 5 PM.
+  if (isToday) {
+    startHour = new Date().getHours();
+  } else {
+    startHour = parseInt((room.available_time?.start || "00:00").substring(0, 2));
+  }
+
+  // Ensure startHour is not before room's actual available start hour
+  const roomActualStartHour = parseInt((room.available_time?.start || "00:00").substring(0, 2));
+  if (startHour < roomActualStartHour) {
+    startHour = roomActualStartHour;
+  }
+
   let actualEndHourForLabels = endHour;
-  if (endMinute === 0 && endHour > startHour) { // If end is exactly on the hour, the label for that hour's start is not needed
+  if (endMinute === 0 && endHour > startHour) {
     actualEndHourForLabels = endHour - 1;
   }
 
   for (let i = startHour; i <= actualEndHourForLabels; i++) {
-    labels.push(format(parseISO(`2000-01-01T${i.toString().padStart(2, '0')}:00:00`), "h a"));
+    labels.push(format(setHours(parseISO(`2000-01-01T00:00:00`), i), "h a"));
   }
   return labels;
 };
@@ -77,8 +106,8 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   const roomBookings = dailyBookingsForSelectedRoomAndDate;
 
   // Generate dynamic time slots and hourly labels based on room's available time
-  const dynamic30MinSlots = room ? generateDynamic30MinSlots(room) : [];
-  const dynamicHourlyLabels = room ? generateDynamicHourlyLabels(room) : [];
+  const dynamic30MinSlots = room && selectedDate ? generateDynamic30MinSlots(room, selectedDate) : [];
+  const dynamicHourlyLabels = room && selectedDate ? generateDynamicHourlyLabels(room, selectedDate) : [];
 
   useEffect(() => {
     setSelectedDate(initialDate); // Ensure selectedDate updates if initialDate changes
@@ -224,8 +253,6 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                 const slotEndDateTime = addMinutes(slotStartDateTime, 30);
 
                 // Determine if this 30-min slot is occupied for clickability
-                // A slot is occupied for clickability if a booking starts exactly at this slot
-                // OR if this slot is fully contained within an existing booking.
                 const isSlotOccupiedForClickability = roomBookings.some(booking => {
                   const bookingStart = parseISO(`2000-01-01T${booking.start_time}`);
                   const bookingEnd = parseISO(`2000-01-01T${booking.end_time}`);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Room, Booking } from "@/types/database";
-import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay, isSameDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Room, Booking } from "@/types/database";
-import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay, isSameDay, startOfHour, addHours } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay, isSameDay, addHours } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -176,10 +176,9 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                         isSlotOccupiedForClickability ? "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60" : (canBookThisSlot ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60")
                       )}
                       onClick={!isSlotOccupiedForClickability && canBookThisSlot ? () => {
-                        // Round the clicked slot's start time down to the nearest hour for auto-fill
-                        const roundedStartTime = format(startOfHour(parseISO(`2000-01-01T${slotTime}:00`)), "HH:mm");
-                        const defaultEndTime = format(addHours(parseISO(`2000-01-01T${roundedStartTime}:00`), 1), "HH:mm");
-                        onBookSlot(room.id, selectedDate, roundedStartTime, defaultEndTime);
+                        // Pass the exact slotTime clicked, and calculate end time 1 hour later
+                        const defaultEndTime = format(addHours(parseISO(`2000-01-01T${slotTime}:00`), 1), "HH:mm");
+                        onBookSlot(room.id, selectedDate, slotTime, defaultEndTime);
                       } : undefined}
                       style={{ gridColumn: `span 1` }} // Each empty slot is 30 minutes, spans 1 grid column
                     >

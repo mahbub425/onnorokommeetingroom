@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, parseISO, addMinutes, isBefore, startOfDay, isAfter, isSameDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, startOfDay, isSameDay, addHours } from "date-fns";
 import { CalendarIcon, Clock, Text, Repeat, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Room, Booking } from "@/types/database";
@@ -26,7 +26,7 @@ const timeToMinutes = (timeString: string) => {
 const getFilteredTimeOptions = (
   roomAvailableStart?: string,
   roomAvailableEnd?: string,
-  selectedDateForBooking?: Date // New parameter
+  selectedDateForBooking?: Date
 ) => {
   const allOptions = [];
   const defaultStart = "00:00";
@@ -43,28 +43,16 @@ const getFilteredTimeOptions = (
   const now = new Date();
   const isToday = selectedDateForBooking ? isSameDay(selectedDateForBooking, now) : false;
 
-  // Calculate the current time rounded up to the nearest 15 minutes
-  let currentMinutes = now.getHours() * 60 + now.getMinutes();
-  let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
-  // Cap at 23:45 if rounding goes to next day
-  if (roundedCurrentMinutes >= 24 * 60) {
-    roundedCurrentMinutes = 23 * 60 + 45;
-  }
-  const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
-  const roundedCurrentMinute = roundedCurrentMinutes % 60;
-  const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
-  const roundedCurrentTime = parseISO(`2000-01-01T${roundedCurrentTimeStr}:00`);
-
   while (isBefore(currentTimeSlot, roomEndTime) || isSameDay(currentTimeSlot, roomEndTime)) {
     const slotTimeStr = format(currentTimeSlot, "HH:mm");
-    
-    // If it's today, only add slots that are at or after the rounded current time
+    const slotEndDateTimeForFilter = addMinutes(currentTimeSlot, 15); // End of this 15-min option
+
     if (isToday) {
-      if (isAfter(currentTimeSlot, roundedCurrentTime) || isSameDay(currentTimeSlot, roundedCurrentTime)) {
+      // Only add options where the END of the 15-minute slot is NOT before the current time
+      if (!isBefore(slotEndDateTimeForFilter, now)) {
         allOptions.push(slotTimeStr);
       }
     } else {
-      // For future dates, add all slots within room's available time
       allOptions.push(slotTimeStr);
     }
     currentTimeSlot = addMinutes(currentTimeSlot, 15); // 15-minute interval
@@ -168,32 +156,32 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
         });
       } else {
         // Booking a new slot
-        let defaultStartTime = initialStartTime || "09:00";
-        let defaultEndTime = initialEndTime || format(addMinutes(parseISO(`2000-01-01T${defaultStartTime}:00`), 60), "HH:mm");
+        let calculatedStartTime = initialStartTime || "09:00";
+        let calculatedEndTime = format(addHours(parseISO(`2000-01-01T${calculatedStartTime}:00`), 1), "HH:mm");
 
-        // If it's today and the initialStartTime is in the past, adjust it to the next available 15-min slot
         const now = new Date();
         const isToday = isSameDay(selectedDate, now);
+
         if (isToday) {
-          const currentMinutes = now.getHours() * 60 + now.getMinutes();
-          let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
-          if (roundedCurrentMinutes >= 24 * 60) {
-            roundedCurrentMinutes = 23 * 60 + 45;
-          }
-          const roundedCurrentTimeStr = `${Math.floor(roundedCurrentMinutes / 60).toString().padStart(2, '0')}:${(roundedCurrentMinutes % 60).toString().padStart(2, '0')}`;
-          
-          if (timeToMinutes(defaultStartTime) < timeToMinutes(roundedCurrentTimeStr)) {
-            defaultStartTime = roundedCurrentTimeStr;
-            // Also adjust defaultEndTime if startTime was adjusted
-            defaultEndTime = format(addMinutes(parseISO(`2000-01-01T${defaultStartTime}:00`), 60), "HH:mm");
+          // If the calculatedStartTime is in the past, adjust it to the next available 15-min slot from now
+          const slotStartDateTime = parseISO(`2000-01-01T${calculatedStartTime}:00`);
+          if (isBefore(slotStartDateTime, now)) {
+            // Round current time up to the nearest 15 minutes
+            let currentMinutes = now.getHours() * 60 + now.getMinutes();
+            let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
+            if (roundedCurrentMinutes >= 24 * 60) {
+              roundedCurrentMinutes = 23 * 60 + 45;
+            }
+            calculatedStartTime = `${Math.floor(roundedCurrentMinutes / 60).toString().padStart(2, '0')}:${(roundedCurrentMinutes % 60).toString().padStart(2, '0')}`;
+            calculatedEndTime = format(addHours(parseISO(`2000-01-01T${calculatedStartTime}:00`), 1), "HH:mm");
           }
         }
 
         form.reset({
           title: "",
           date: selectedDate,
-          startTime: defaultStartTime,
-          endTime: defaultEndTime,
+          startTime: calculatedStartTime,
+          endTime: calculatedEndTime,
           repeatType: "no_repeat",
           remarks: "",
           endDate: undefined,

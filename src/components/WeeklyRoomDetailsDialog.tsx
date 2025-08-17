@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format, parseISO, addMinutes, isBefore, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay, startOfHour, addHours } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay, addHours } from "date-fns";
 import { Plus } from "lucide-react";
 import { Room, Booking } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
@@ -132,11 +132,8 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
       return;
     }
 
-    // Round the clicked slot's start time down to the nearest hour for auto-fill
-    const roundedStartTime = format(startOfHour(parseISO(`2000-01-01T${slotTime}:00`)), "HH:mm");
-    const defaultEndTime = format(addHours(parseISO(`2000-01-01T${roundedStartTime}:00`), 1), "HH:mm");
-
-    onBookSlot(room.id, selectedDate, roundedStartTime, defaultEndTime);
+    // Pass the exact slotTime clicked, and calculate end time 1 hour later
+    onBookSlot(room.id, selectedDate, slotTime, format(addHours(parseISO(`2000-01-01T${slotTime}:00`), 1), "HH:mm"));
     onOpenChange(false); // Close this dialog after initiating booking
   };
 
@@ -304,7 +301,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                       {booking.title}
                     </span>
                     <span className="text-[10px] text-center opacity-90 mt-1">
-                      {format(bookingStart, "h:mma")} - {format(bookingEnd, "h:mma")}
+                          {format(bookingStart, "h:mma")} - {format(bookingEnd, "h:mma")}
                     </span>
                   </div>
                 );

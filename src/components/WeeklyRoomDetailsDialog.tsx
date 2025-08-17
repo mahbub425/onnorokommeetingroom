@@ -263,7 +263,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                         "h-[30px] flex items-center justify-center p-1 border-b border-gray-200 dark:border-gray-700 last:border-b-0",
                         canBookSlot ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60"
                       )}
-                      onClick={canBookSlot ? () => handleEmptySlotClick(slotTime) : undefined}
+                      onClick={canBookSlot ? (e) => { e.stopPropagation(); handleEmptySlotClick(slotTime); } : undefined}
                       style={{ top: `${index * 30}px`, position: 'absolute', left: 0, right: 0 }}
                     >
                       <Plus className={cn("h-5 w-5 text-gray-400", canBookSlot ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />

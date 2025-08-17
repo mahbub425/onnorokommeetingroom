@@ -4,7 +4,7 @@ import { useSession } from "@/components/SessionProvider";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/auth";
 import { useNavigate } from "react-router-dom";
-import { Share2, HelpCircle, User as UserIcon } from "lucide-react";
+import { Share2, HelpCircle, User as UserIcon, Menu } from "lucide-react"; // Added Menu icon
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format, startOfWeek, addDays } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +20,10 @@ import { Room, Booking } from "@/types/database";
 import BookingFormDialog from "@/components/BookingFormDialog";
 import BookingDetailsDialog from "@/components/BookingDetailsDialog";
 import MiniCalendar from "@/components/MiniCalendar";
+import { cn } from "@/lib/utils"; // Import cn
+
+// Import the logo image
+import OnnoRokomLogo from '/placeholder.svg'; // Assuming placeholder.svg is the logo
 
 const UserDashboard = () => {
   const { session, isAdmin, isLoading } = useSession();
@@ -44,6 +48,9 @@ const UserDashboard = () => {
   const [dailyBookingsForWeeklyDetails, setDailyBookingsForWeeklyDetails] = useState<Booking[]>([]);
   const [newBookingStartTime, setNewBookingStartTime] = useState<string | undefined>(undefined);
   const [newBookingEndTime, setNewBookingEndTime] = useState<string | undefined>(undefined);
+
+  // State for sidebar visibility on mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 
   useEffect(() => {
@@ -276,16 +283,24 @@ const UserDashboard = () => {
   const loggedInAs = isAdmin ? "Super Admin" : userProfile?.email || session?.user?.email;
 
   return (
-    <div className="flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Top Bar */}
       <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 shadow-md">
         <div className="flex items-center space-x-4">
+          {/* Hamburger icon for mobile sidebar */}
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+            <Menu className="h-5 w-5" />
+          </Button>
           <Button variant="outline" onClick={handleTodayClick}>Today</Button>
           <span className="text-lg font-semibold">
-            {selectedDate ? format(selectedDate, "EEEE, MMMM dd, yyyy") : "Select a Date"}
+            {selectedDate ? format(selectedDate, "d MMM yyyy") : "Select a Date"}
           </span>
         </div>
-        <div className="text-xl font-bold text-gray-800 dark:text-gray-200">OnnoRokom Group</div>
+        {/* OnnoRokom Group Logo */}
+        <div className="flex items-center">
+          <img src={OnnoRokomLogo} alt="OnnoRokom Group" className="h-8 mr-2" />
+          <span className="text-xl font-bold text-gray-800 dark:text-gray-200">OnnoRokom Group</span>
+        </div>
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="icon" onClick={() => window.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "_blank")}>
             <HelpCircle className="h-5 w-5" />
@@ -311,30 +326,54 @@ const UserDashboard = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex flex-col md:flex-row flex-1">
+      <div className="flex flex-1">
         {/* Left Sidebar */}
-        <div className="w-full md:w-1/5 flex-shrink-0 p-4 border-b md:border-b-0 md:border-r dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col space-y-4 overflow-y-auto h-full">
+        <div className={cn(
+          "fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 shadow-lg p-4 flex flex-col space-y-4 overflow-y-auto transition-transform duration-300 ease-in-out",
+          "md:relative md:translate-x-0 md:shadow-none md:border-r dark:md:border-gray-700",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}>
           <MiniCalendar
             mode="single"
             selected={selectedDate}
             onSelect={setSelectedDate}
           />
+          {/* Date range display below calendar */}
+          <div className="text-center text-sm text-gray-600 dark:text-gray-400">
+            {selectedDate ? (
+              <>
+                <span className="font-semibold">{format(selectedDate, "MMM d, yyyy")}</span>
+                {" - "}
+                <span className="font-semibold">{format(addDays(selectedDate, 6), "MMM d, yyyy")}</span> {/* Assuming a 7-day week display */}
+              </>
+            ) : (
+              "Select a date"
+            )}
+          </div>
           <div className="space-y-2">
-            <Label htmlFor="layout-filter">Layout Filter</Label>
+            <Label htmlFor="layout-filter">Layout View</Label>
             <Select value={layout} onValueChange={(value: "daily" | "weekly") => saveUserPreference(value)}>
               <SelectTrigger id="layout-filter">
                 <SelectValue placeholder="Select layout" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="daily">Day</SelectItem>
+                <SelectItem value="weekly">Week</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
+        {/* Overlay for mobile sidebar */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-20 md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          ></div>
+        )}
+
         {/* Right Content Area (Main Schedule View) */}
-        <div className="w-full md:w-4/5 p-4 overflow-auto">
+        <div className="flex-1 p-4 overflow-auto">
           {layout === "daily" ? (
             <DailyScheduleGrid
               rooms={rooms}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes } from "date-fns";
 import { Plus } from "lucide-react";
 import { Room, Booking } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
@@ -88,17 +88,6 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   const handleEmptySlotClick = (slotTime: string) => {
     if (!room || !selectedDate) return;
 
-    const isPastSelectedDate = isBefore(startOfDay(selectedDate || new Date()), startOfDay(new Date()));
-    
-    if (isPastSelectedDate) {
-      toast({
-        title: "Booking Not Allowed",
-        description: "Cannot book for past dates.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     // Check if the clicked 30-min slot is within the room's available time
     const slotStartMinutes = timeToMinutes(slotTime);
     const roomStartMinutes = room.available_time ? timeToMinutes(room.available_time.start) : 0;
@@ -129,8 +118,6 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   if (!room) {
     return null;
   }
-
-  const isPastSelectedDate = isBefore(startOfDay(selectedDate || new Date()), startOfDay(new Date()));
 
   // Generate dates for current and next week
   const startOfCurrentWeek = startOfWeek(selectedDate || new Date(), { weekStartsOn: 0 }); // Sunday as start of week
@@ -233,7 +220,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                   );
                 });
 
-                const canBookSlot = !isPastSelectedDate; // Only prevent booking for past dates
+                const canBookSlot = true; // Always allow booking for any time slot
 
                 // Only render the background cell if it's NOT occupied for clickability
                 if (!isSlotOccupiedForClickability) {

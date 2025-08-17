@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, parseISO, addMinutes, isBefore, startOfDay, isSameDay, setHours, setMinutes } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, startOfDay, isSameDay } from "date-fns";
 import { CalendarIcon, Clock, Text, Repeat, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Room, Booking } from "@/types/database";
@@ -22,12 +22,10 @@ const timeToMinutes = (timeString: string) => {
   return hours * 60 + minutes;
 };
 
-// Helper function to generate filtered time options based on room availability, selected date, and if it's a new booking
+// Helper function to generate filtered time options based on room availability
 const getFilteredTimeOptions = (
   roomAvailableStart?: string,
-  roomAvailableEnd?: string,
-  selectedDate?: Date,
-  isNewBooking: boolean = true
+  roomAvailableEnd?: string
 ) => {
   const allOptions = [];
   const defaultStart = "00:00";
@@ -45,31 +43,6 @@ const getFilteredTimeOptions = (
     allOptions.push(format(currentTimeSlot, "HH:mm"));
     currentTimeSlot = addMinutes(currentTimeSlot, 15); // 15-minute interval
   }
-
-  // Apply current time filtering ONLY if it's a new booking and selectedDate is today
-  if (isNewBooking && selectedDate && isSameDay(selectedDate, new Date())) {
-    const now = new Date();
-    const currentMinute = now.getMinutes();
-    let roundedMinute;
-
-    if (currentMinute >= 0 && currentMinute <= 14) {
-      roundedMinute = 0;
-    } else if (currentMinute >= 15 && currentMinute <= 29) {
-      roundedMinute = 15;
-    } else if (currentMinute >= 30 && currentMinute <= 44) {
-      roundedMinute = 30;
-    } else { // 45-59
-      roundedMinute = 45;
-    }
-
-    const currentAvailableTime = setMinutes(setHours(new Date(), now.getHours()), roundedMinute);
-    
-    return allOptions.filter(time => {
-      const optionDateTime = parseISO(`2000-01-01T${time}:00`);
-      return !isBefore(optionDateTime, currentAvailableTime);
-    });
-  }
-
   return allOptions;
 };
 
@@ -134,18 +107,27 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeOptions, setTimeOptions] = useState<string[]>([]);
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      date: selectedDate,
+      startTime: initialStartTime || "09:00",
+      endTime: initialEndTime || "10:00",
+      repeatType: "no_repeat",
+      remarks: "",
+    },
+  });
+
   useEffect(() => {
-    if (room && selectedDate) {
-      const isNew = !existingBooking;
+    if (room) {
       const options = getFilteredTimeOptions(
         room.available_time?.start,
-        room.available_time?.end,
-        selectedDate,
-        isNew
+        room.available_time?.end
       );
       setTimeOptions(options);
 
-      if (isNew && options.length > 0) {
+      if (!existingBooking && options.length > 0) {
         form.setValue("startTime", initialStartTime || options[0]);
         const defaultEndTime = format(addMinutes(parseISO(`2000-01-01T${options[0]}:00`), 60), "HH:mm");
         form.setValue("endTime", initialEndTime || defaultEndTime);
@@ -153,16 +135,13 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
     } else {
       setTimeOptions(getFilteredTimeOptions());
     }
-  }, [room, selectedDate, initialStartTime, initialEndTime, existingBooking, form]);
+  }, [room, initialStartTime, initialEndTime, existingBooking, form]);
 
   useEffect(() => {
     if (open && room) {
-      const isNew = !existingBooking;
       const currentFilteredTimeOptions = getFilteredTimeOptions(
         room.available_time?.start,
-        room.available_time?.end,
-        selectedDate,
-        isNew
+        room.available_time?.end
       );
       setTimeOptions(currentFilteredTimeOptions);
 

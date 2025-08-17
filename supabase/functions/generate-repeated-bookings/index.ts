@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import { addDays, addWeeks, addMonths, format, getDay, getDate, isBefore, parseISO } from 'https://esm.sh/date-fns@3.6.0';
+import { addDays, addWeeks, addMonths, format, isBefore, parseISO } from 'https://esm.sh/date-fns@3.6.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -63,69 +63,26 @@ serve(async (req: Request) => {
       let shouldBook = true;
       let skipReason = "";
 
-      if (repeatType === 'daily' || repeatType === 'custom') {
-        const dayOfWeek = getDay(currentDate); // Sunday - 0, Monday - 1, ..., Saturday - 6
+      console.log(`Checking for conflicts for proposed booking: Room ${initialBooking.room_id}, Date ${proposedBookingDate}, Time ${initialBooking.start_time}-${initialBooking.end_time}`);
 
-        // Skip every Friday (dayOfWeek === 5)
-        if (dayOfWeek === 5) {
-          shouldBook = false;
-          skipReason = "এটি শুক্রবার।";
-        } else if (dayOfWeek === 6) { // Saturday
-          // Calculate which Saturday of the month it is
-          let saturdayCount = 0;
-          for (let d = 1; d <= getDate(currentDate); d++) {
-            const tempDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), d);
-            if (getDay(tempDate) === 6) { // If it's a Saturday
-              saturdayCount++;
-            }
-          }
+      // Check for conflicts for the proposed repeated booking
+      const { data: conflicts, error: conflictError } = await supabaseClient
+          .from('bookings')
+          .select('id')
+          .eq('room_id', initialBooking.room_id)
+          .eq('date', proposedBookingDate)
+          .filter('start_time', 'lt', initialBooking.end_time)
+          .filter('end_time', 'gt', initialBooking.start_time)
+          .neq('id', initialBooking.id); // Exclude the initial booking itself from conflict check
 
-          // Check if it's the 1st, 3rd, or 4th Saturday
-          if (saturdayCount === 1 || saturdayCount === 3) {
-            shouldBook = false;
-            skipReason = `এটি মাসের ${saturdayCount === 1 ? 'প্রথম' : 'তৃতীয়'} শনিবার।`;
-          } else if (saturdayCount === 4) {
-            // Check if there are at least 4 Saturdays in the month
-            const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-            let totalSaturdaysInMonth = 0;
-            for (let d = 1; d <= getDate(lastDayOfMonth); d++) {
-              const tempDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), d);
-              if (getDay(tempDate) === 6) {
-                totalSaturdaysInMonth++;
-              }
-            }
-            if (totalSaturdaysInMonth >= 4) {
-              shouldBook = false;
-              skipReason = "এটি মাসের চতুর্থ শনিবার।";
-            }
-          }
-        }
-      }
-
-      if (!shouldBook) {
-        console.log(`Skipping proposed booking for ${proposedBookingDate}: ${skipReason}`);
-      } else {
-        console.log(`Checking for conflicts for proposed booking: Room ${initialBooking.room_id}, Date ${proposedBookingDate}, Time ${initialBooking.start_time}-${initialBooking.end_time}`);
-
-        // Check for conflicts for the proposed repeated booking
-        const { data: conflicts, error: conflictError } = await supabaseClient
-            .from('bookings')
-            .select('id')
-            .eq('room_id', initialBooking.room_id)
-            .eq('date', proposedBookingDate)
-            .filter('start_time', 'lt', initialBooking.end_time)
-            .filter('end_time', 'gt', initialBooking.start_time)
-            .neq('id', initialBooking.id); // Exclude the initial booking itself from conflict check
-
-        if (conflictError) {
-            console.error(`Error checking conflict for ${proposedBookingDate}:`, conflictError.message);
-            shouldBook = false; // Skip this booking due to error
-            skipReason = `Conflict check error: ${conflictError.message}`;
-        } else if (conflicts && conflicts.length > 0) {
-            console.warn(`Skipping repeated booking for ${proposedBookingDate} due to conflict. Existing booking IDs: ${conflicts.map((c: { id: string }) => c.id).join(', ')}`);
-            shouldBook = false; // Skip this booking due to conflict
-            skipReason = `Time slot conflicts with existing booking(s): ${conflicts.map((c: { id: string }) => c.id).join(', ')}`;
-        }
+      if (conflictError) {
+          console.error(`Error checking conflict for ${proposedBookingDate}:`, conflictError.message);
+          shouldBook = false; // Skip this booking due to error
+          skipReason = `Conflict check error: ${conflictError.message}`;
+      } else if (conflicts && conflicts.length > 0) {
+          console.warn(`Skipping repeated booking for ${proposedBookingDate} due to conflict. Existing booking IDs: ${conflicts.map((c: { id: string }) => c.id).join(', ')}`);
+          shouldBook = false; // Skip this booking due to conflict
+          skipReason = `Time slot conflicts with existing booking(s): ${conflicts.map((c: { id: string }) => c.id).join(', ')}`;
       }
 
       if (shouldBook) {
@@ -155,9 +112,9 @@ serve(async (req: Request) => {
         // For monthly, we advance by one month, but keep the day of the month
         // If the original day is greater than the number of days in the target month,
         // it should book on the last day of the target month.
-        const originalDay = getDate(parseISO(initialBooking.date));
+        const originalDay = parseISO(initialBooking.date).getDate();
         const nextMonth = addMonths(currentDate, 1);
-        const lastDayOfNextMonth = getDate(new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0));
+        const lastDayOfNextMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate();
         const targetDay = Math.min(originalDay, lastDayOfNextMonth);
         currentDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), targetDay);
       } else { // no_repeat or unknown type

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Room, Booking } from "@/types/database";
-import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay, isSameDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay, isSameDay, startOfHour, addHours } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,12 +25,6 @@ const generateHourlyLabels = () => {
     labels.push(format(parseISO(`2000-01-01T${i.toString().padStart(2, '0')}:00:00`), "h a"));
   }
   return labels;
-};
-
-// Helper to convert HH:MM to minutes from midnight
-const timeToMinutes = (timeString: string) => {
-  const [hours, minutes] = timeString.split(':').map(Number);
-  return hours * 60 + minutes;
 };
 
 interface DailyScheduleGridProps {
@@ -58,8 +52,9 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
     const isToday = isSameDay(selectedDate, now);
 
     if (isToday) {
-      // Calculate the start index for the current hour
-      const currentHourStartIndex = Math.floor(now.getHours() * 2); // Each hour has 2 x 30-min slots
+      // Calculate the start index for the current hour, rounded down
+      const currentHour = now.getHours();
+      const currentHourStartIndex = currentHour * 2; // Each hour has 2 x 30-min slots
       setVisibleTimeStartIndex(currentHourStartIndex);
     } else {
       // For past or future dates, default to 9 AM (index 18 for 09:00)
@@ -90,17 +85,6 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
   };
 
   const isPastDate = isBefore(startOfDay(selectedDate), startOfDay(new Date()));
-  const isToday = isSameDay(selectedDate, new Date());
-
-  // Calculate the current time rounded up to the nearest 15 minutes
-  const now = new Date();
-  let currentMinutes = now.getHours() * 60 + now.getMinutes();
-  let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
-  if (roundedCurrentMinutes >= 24 * 60) {
-    roundedCurrentMinutes = 23 * 60 + 45;
-  }
-  const roundedCurrentTimeStr = `${Math.floor(roundedCurrentMinutes / 60).toString().padStart(2, '0')}:${(roundedCurrentMinutes % 60).toString().padStart(2, '0')}`;
-  const roundedCurrentTimeInMinutes = timeToMinutes(roundedCurrentTimeStr);
 
   return (
     <div className="overflow-x-auto">
@@ -179,8 +163,10 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                     );
                   });
 
-                  // A slot is bookable if it's not a past date AND (if today, its end time is NOT before or equal to the current rounded time)
-                  const canBookThisSlot = !isPastDate && !(isToday && timeToMinutes(format(slotEndDateTime, "HH:mm")) <= roundedCurrentTimeInMinutes);
+                  const now = new Date();
+
+                  // A slot is bookable if it's not a past date AND its end time has not passed yet
+                  const canBookThisSlot = !isPastDate && !isBefore(slotEndDateTime, now);
 
                   return (
                     <div
@@ -190,8 +176,10 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                         isSlotOccupiedForClickability ? "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60" : (canBookThisSlot ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60")
                       )}
                       onClick={!isSlotOccupiedForClickability && canBookThisSlot ? () => {
-                        // Pass the exact slotTime clicked
-                        onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm"));
+                        // Round the clicked slot's start time down to the nearest hour for auto-fill
+                        const roundedStartTime = format(startOfHour(parseISO(`2000-01-01T${slotTime}:00`)), "HH:mm");
+                        const defaultEndTime = format(addHours(parseISO(`2000-01-01T${roundedStartTime}:00`), 1), "HH:mm");
+                        onBookSlot(room.id, selectedDate, roundedStartTime, defaultEndTime);
                       } : undefined}
                       style={{ gridColumn: `span 1` }} // Each empty slot is 30 minutes, spans 1 grid column
                     >

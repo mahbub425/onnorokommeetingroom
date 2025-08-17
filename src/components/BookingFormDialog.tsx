@@ -146,71 +146,58 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
   });
 
   useEffect(() => {
-    if (room) {
+    if (open) {
+      // Determine available time options based on room and selected date
       const options = getFilteredTimeOptions(
-        room.available_time?.start,
-        room.available_time?.end,
-        selectedDate // Pass selectedDate here
+        room?.available_time?.start,
+        room?.available_time?.end,
+        selectedDate
       );
       setTimeOptions(options);
 
-      if (!existingBooking && options.length > 0) {
+      if (existingBooking) {
+        // Editing an existing booking
+        form.reset({
+          title: existingBooking.title,
+          date: parseISO(existingBooking.date),
+          startTime: existingBooking.start_time.substring(0, 5),
+          endTime: existingBooking.end_time.substring(0, 5),
+          repeatType: "no_repeat", // Existing bookings are not treated as new recurring series
+          remarks: existingBooking.remarks || "",
+          endDate: existingBooking.repeat_end_date ? parseISO(existingBooking.repeat_end_date) : undefined,
+        });
+      } else {
+        // Booking a new slot
+        let defaultStartTime = initialStartTime || "09:00";
+        let defaultEndTime = initialEndTime || format(addMinutes(parseISO(`2000-01-01T${defaultStartTime}:00`), 60), "HH:mm");
+
+        // If it's today and the initialStartTime is in the past, adjust it to the next available 15-min slot
         const now = new Date();
         const isToday = isSameDay(selectedDate, now);
-        
-        let defaultStart = initialStartTime || options[0];
         if (isToday) {
           const currentMinutes = now.getHours() * 60 + now.getMinutes();
           let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
           if (roundedCurrentMinutes >= 24 * 60) {
             roundedCurrentMinutes = 23 * 60 + 45;
           }
-          const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
-          const roundedCurrentMinute = roundedCurrentMinutes % 60;
-          const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
-
-          // Find the first option that is >= roundedCurrentTimeStr
-          const firstAvailableOption = options.find(opt => timeToMinutes(opt) >= timeToMinutes(roundedCurrentTimeStr));
-          if (firstAvailableOption) {
-            defaultStart = firstAvailableOption;
-          } else {
-            // If no future slots available today (e.g., late in the day), default to the last possible slot or disable booking
-            // For now, let's default to the last available slot if any, otherwise keep the first option.
-            defaultStart = options[options.length - 1] || initialStartTime || "09:00";
+          const roundedCurrentTimeStr = `${Math.floor(roundedCurrentMinutes / 60).toString().padStart(2, '0')}:${(roundedCurrentMinutes % 60).toString().padStart(2, '0')}`;
+          
+          if (timeToMinutes(defaultStartTime) < timeToMinutes(roundedCurrentTimeStr)) {
+            defaultStartTime = roundedCurrentTimeStr;
+            // Also adjust defaultEndTime if startTime was adjusted
+            defaultEndTime = format(addMinutes(parseISO(`2000-01-01T${defaultStartTime}:00`), 60), "HH:mm");
           }
         }
 
-        form.setValue("startTime", defaultStart);
-        const defaultEndTime = format(addMinutes(parseISO(`2000-01-01T${defaultStart}:00`), 60), "HH:mm");
-        form.setValue("endTime", initialEndTime || defaultEndTime);
-      }
-    } else {
-      // If no room selected, use default full-day time options
-      const options = getFilteredTimeOptions(undefined, undefined, selectedDate);
-      setTimeOptions(options);
-      if (!existingBooking && options.length > 0) {
-        const now = new Date();
-        const isToday = isSameDay(selectedDate, now);
-        let defaultStart = initialStartTime || options[0];
-        if (isToday) {
-          const currentMinutes = now.getHours() * 60 + now.getMinutes();
-          let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
-          if (roundedCurrentMinutes >= 24 * 60) {
-            roundedCurrentMinutes = 23 * 60 + 45;
-          }
-          const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
-          const roundedCurrentMinute = roundedCurrentMinutes % 60;
-          const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
-          const firstAvailableOption = options.find(opt => timeToMinutes(opt) >= timeToMinutes(roundedCurrentTimeStr));
-          if (firstAvailableOption) {
-            defaultStart = firstAvailableOption;
-          } else {
-            defaultStart = options[options.length - 1] || initialStartTime || "09:00";
-          }
-        }
-        form.setValue("startTime", defaultStart);
-        const defaultEndTime = format(addMinutes(parseISO(`2000-01-01T${defaultStart}:00`), 60), "HH:mm");
-        form.setValue("endTime", initialEndTime || defaultEndTime);
+        form.reset({
+          title: "",
+          date: selectedDate,
+          startTime: defaultStartTime,
+          endTime: defaultEndTime,
+          repeatType: "no_repeat",
+          remarks: "",
+          endDate: undefined,
+        });
       }
     }
   }, [open, room, selectedDate, initialStartTime, initialEndTime, existingBooking, form]);

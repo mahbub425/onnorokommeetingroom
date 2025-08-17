@@ -51,12 +51,20 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
   const allDetailedTimeSlots = generateDetailedTimeSlots(); // 30-minute intervals for grid cells (48 slots)
   const allHourlyLabels = generateHourlyLabels(); // Hourly labels for the header (24 labels)
 
-  // State to control the visible 6-hour window (index refers to the start of 30-min slots)
-  const [visibleTimeStartIndex, setVisibleTimeStartIndex] = useState(0); // Default to 00:00
+  const [visibleTimeStartIndex, setVisibleTimeStartIndex] = useState(0);
 
   useEffect(() => {
-    // For past or future dates, default to 9 AM (index 18 for 09:00)
-    setVisibleTimeStartIndex(18);
+    const now = new Date();
+    const isToday = isSameDay(selectedDate, now);
+
+    if (isToday) {
+      // Calculate the start index for the current hour
+      const currentHourStartIndex = Math.floor(now.getHours() * 2); // Each hour has 2 x 30-min slots
+      setVisibleTimeStartIndex(currentHourStartIndex);
+    } else {
+      // For past or future dates, default to 9 AM (index 18 for 09:00)
+      setVisibleTimeStartIndex(18);
+    }
   }, [selectedDate]);
 
 
@@ -91,9 +99,7 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
   if (roundedCurrentMinutes >= 24 * 60) {
     roundedCurrentMinutes = 23 * 60 + 45;
   }
-  const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
-  const roundedCurrentMinute = roundedCurrentMinutes % 60;
-  const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
+  const roundedCurrentTimeStr = `${Math.floor(roundedCurrentMinutes / 60).toString().padStart(2, '0')}:${(roundedCurrentMinutes % 60).toString().padStart(2, '0')}`;
   const roundedCurrentTimeInMinutes = timeToMinutes(roundedCurrentTimeStr);
 
   return (
@@ -162,19 +168,19 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
               <div key={room.id} className="grid grid-cols-12 h-24 relative"> {/* This is the parent for absolute positioning */}
                 {/* Render background 30-minute cells */}
                 {visibleDetailedTimeSlots.map((slotTime: string, _index: number) => {
+                  const slotStartDateTime = parseISO(`2000-01-01T${slotTime}:00`);
+                  const slotEndDateTime = addMinutes(slotStartDateTime, 30); // End time of the 30-min slot
+
                   const isSlotOccupiedForClickability = dailyBookings.some((booking: Booking) => {
                     const bookingStart = parseISO(`2000-01-01T${booking.start_time}`);
                     const bookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
-                    const slotStartDateTime = parseISO(`2000-01-01T${slotTime}:00`);
-                    const slotEndDateTime = addMinutes(slotStartDateTime, 30);
                     return (
-                      (bookingStart.getTime() === slotStartDateTime.getTime()) || // Booking starts exactly here
-                      (isBefore(bookingStart, slotStartDateTime) && isAfter(bookingEnd, slotEndDateTime)) // Slot is fully contained within a booking
+                      (bookingStart.getTime() < slotEndDateTime.getTime() && bookingEnd.getTime() > slotStartDateTime.getTime())
                     );
                   });
 
-                  const slotStartInMinutes = timeToMinutes(slotTime);
-                  const canBookThisSlot = !isPastDate && !(isToday && slotStartInMinutes < roundedCurrentTimeInMinutes);
+                  // A slot is bookable if it's not a past date AND (if today, its end time is NOT before or equal to the current rounded time)
+                  const canBookThisSlot = !isPastDate && !(isToday && timeToMinutes(format(slotEndDateTime, "HH:mm")) <= roundedCurrentTimeInMinutes);
 
                   return (
                     <div
@@ -184,11 +190,8 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                         isSlotOccupiedForClickability ? "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60" : (canBookThisSlot ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60")
                       )}
                       onClick={!isSlotOccupiedForClickability && canBookThisSlot ? () => {
-                        // Determine the actual start time for booking based on current time
-                        const actualBookingStartTime = isToday && slotStartInMinutes < roundedCurrentTimeInMinutes
-                          ? roundedCurrentTimeStr
-                          : slotTime;
-                        onBookSlot(room.id, selectedDate, actualBookingStartTime, format(addMinutes(parseISO(`2000-01-01T${actualBookingStartTime}`), 60), "HH:mm"));
+                        // Pass the exact slotTime clicked
+                        onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm"));
                       } : undefined}
                       style={{ gridColumn: `span 1` }} // Each empty slot is 30 minutes, spans 1 grid column
                     >

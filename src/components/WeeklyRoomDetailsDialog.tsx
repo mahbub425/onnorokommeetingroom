@@ -29,8 +29,8 @@ const generateDynamic30MinSlots = (room: Room, selectedDateForBooking: Date) => 
   const start = room.available_time?.start || "00:00";
   const end = room.available_time?.end || "23:59";
 
-  let currentTime = parseISO(`2000-01-01T${start}:00`);
-  const endTime = parseISO(`2000-01-01T${end}:00`);
+  let currentTimeSlot = parseISO(`2000-01-01T${start}:00`);
+  const roomEndTime = parseISO(`2000-01-01T${end}:00`);
 
   const now = new Date();
   const isToday = isSameDay(selectedDateForBooking, now);
@@ -44,20 +44,22 @@ const generateDynamic30MinSlots = (room: Room, selectedDateForBooking: Date) => 
   const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
   const roundedCurrentMinute = roundedCurrentMinutes % 60;
   const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
-  const roundedCurrentTime = parseISO(`2000-01-01T${roundedCurrentTimeStr}:00`);
+  const roundedCurrentTimeInMinutes = timeToMinutes(roundedCurrentTimeStr);
 
   // Ensure the loop includes the end time if it's on a 30-minute boundary
-  while (isBefore(currentTime, endTime) || isSameDay(currentTime, endTime)) {
-    const slotTimeStr = format(currentTime, "HH:mm");
-    // Only add slots that are at or after the rounded current time if it's today
+  while (isBefore(currentTimeSlot, roomEndTime) || isSameDay(currentTimeSlot, roomEndTime)) {
+    const slotTimeStr = format(currentTimeSlot, "HH:mm");
+    const slotEndDateTime = addMinutes(currentTimeSlot, 30); // End time of the 30-min slot
+
+    // If it's today, only add slots whose END TIME is AFTER the current rounded time
     if (isToday) {
-      if (isAfter(currentTime, roundedCurrentTime) || isSameDay(currentTime, roundedCurrentTime)) {
+      if (timeToMinutes(format(slotEndDateTime, "HH:mm")) > roundedCurrentTimeInMinutes) {
         slots.push(slotTimeStr);
       }
     } else {
       slots.push(slotTimeStr);
     }
-    currentTime = addMinutes(currentTime, 30); // Keep 30-minute visual slots
+    currentTimeSlot = addMinutes(currentTimeSlot, 30); // Keep 30-minute visual slots
   }
   return slots;
 };
@@ -125,7 +127,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
       return;
     }
 
-    // Determine the actual start time for booking based on current time and 15-min granularity
+    // Calculate the current time rounded up to the nearest 15 minutes
     const now = new Date();
     const isToday = isSameDay(selectedDate, now);
     let currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -138,15 +140,22 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
     const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
     const roundedCurrentTimeInMinutes = timeToMinutes(roundedCurrentTimeStr);
 
-    let actualBookingStartTime = slotTime;
-    if (isToday && slotStartMinutes < roundedCurrentTimeInMinutes) {
-      actualBookingStartTime = roundedCurrentTimeStr;
+    const slotEndInMinutes = timeToMinutes(format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 30), "HH:mm"));
+
+    // Check if the slot is in the past based on its end time
+    const canBookSlot = !isBefore(selectedDate || new Date(), startOfDay(new Date())) && !(isToday && slotEndInMinutes <= roundedCurrentTimeInMinutes);
+
+    if (!canBookSlot) {
+      toast({
+        title: "Unavailable Time",
+        description: "This time slot has already passed or is currently ending.",
+        variant: "destructive",
+      });
+      return;
     }
 
-    // If no conflict and within available time, proceed to book
-    // Pass a default 1-hour end time, user can adjust in the form
-    const potentialBookingEnd = addMinutes(parseISO(`2000-01-01T${actualBookingStartTime}:00`), 60); 
-    onBookSlot(room.id, selectedDate, actualBookingStartTime, format(potentialBookingEnd, "HH:mm"));
+    // Pass the exact slotTime clicked
+    onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm"));
     onOpenChange(false); // Close this dialog after initiating booking
   };
 
@@ -256,8 +265,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                   const bookingStart = parseISO(`2000-01-01T${booking.start_time}`);
                   const bookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
                   return (
-                    (bookingStart.getTime() === slotStartDateTime.getTime()) || // Booking starts exactly here
-                    (isBefore(bookingStart, slotStartDateTime) && isAfter(bookingEnd, slotEndDateTime)) // Slot is fully contained within a booking
+                    (bookingStart.getTime() < slotEndDateTime.getTime() && bookingEnd.getTime() > slotStartDateTime.getTime())
                   );
                 });
 
@@ -273,8 +281,9 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                 const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
                 const roundedCurrentTimeInMinutes = timeToMinutes(roundedCurrentTimeStr);
 
-                const slotStartInMinutes = timeToMinutes(slotTime);
-                const canBookSlot = !isBefore(selectedDate || new Date(), startOfDay(new Date())) && !(isToday && slotStartInMinutes < roundedCurrentTimeInMinutes);
+                const slotEndInMinutes = timeToMinutes(format(slotEndDateTime, "HH:mm"));
+
+                const canBookSlot = !isBefore(selectedDate || new Date(), startOfDay(new Date())) && !(isToday && slotEndInMinutes <= roundedCurrentTimeInMinutes);
 
                 // Only render the background cell if it's NOT occupied for clickability
                 if (!isSlotOccupiedForClickability) {

@@ -22,11 +22,10 @@ const timeToMinutes = (timeString: string) => {
   return hours * 60 + minutes;
 };
 
-// Helper function to generate filtered time options based on room availability and current time
+// Helper function to generate filtered time options based on room availability
 const getFilteredTimeOptions = (
   roomAvailableStart?: string,
-  roomAvailableEnd?: string,
-  selectedDateForBooking?: Date
+  roomAvailableEnd?: string
 ) => {
   const allOptions = [];
   const defaultStart = "00:00";
@@ -40,21 +39,9 @@ const getFilteredTimeOptions = (
   let currentTimeSlot = parseISO(`2000-01-01T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00`);
   const roomEndTime = parseISO(`2000-01-01T${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`);
 
-  const now = new Date();
-  const isToday = selectedDateForBooking ? isSameDay(selectedDateForBooking, now) : false;
-
   while (isBefore(currentTimeSlot, roomEndTime) || isSameDay(currentTimeSlot, roomEndTime)) {
     const slotTimeStr = format(currentTimeSlot, "HH:mm");
-    const slotEndDateTimeForFilter = addMinutes(currentTimeSlot, 15); // End of this 15-min option
-
-    if (isToday) {
-      // Only add options where the END of the 15-minute slot is NOT before the current time
-      if (!isBefore(slotEndDateTimeForFilter, now)) {
-        allOptions.push(slotTimeStr);
-      }
-    } else {
-      allOptions.push(slotTimeStr);
-    }
+    allOptions.push(slotTimeStr);
     currentTimeSlot = addMinutes(currentTimeSlot, 15); // 15-minute interval
   }
   return allOptions;
@@ -135,11 +122,10 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
 
   useEffect(() => {
     if (open) {
-      // Determine available time options based on room and selected date
+      // Determine available time options based on room
       const options = getFilteredTimeOptions(
         room?.available_time?.start,
-        room?.available_time?.end,
-        selectedDate
+        room?.available_time?.end
       );
       setTimeOptions(options);
 
@@ -158,24 +144,6 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
         // Booking a new slot
         let calculatedStartTime = initialStartTime || "09:00";
         let calculatedEndTime = format(addHours(parseISO(`2000-01-01T${calculatedStartTime}:00`), 1), "HH:mm");
-
-        const now = new Date();
-        const isToday = isSameDay(selectedDate, now);
-
-        if (isToday) {
-          // If the calculatedStartTime is in the past, adjust it to the next available 15-min slot from now
-          const slotStartDateTime = parseISO(`2000-01-01T${calculatedStartTime}:00`);
-          if (isBefore(slotStartDateTime, now)) {
-            // Round current time up to the nearest 15 minutes
-            let currentMinutes = now.getHours() * 60 + now.getMinutes();
-            let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
-            if (roundedCurrentMinutes >= 24 * 60) {
-              roundedCurrentMinutes = 23 * 60 + 45;
-            }
-            calculatedStartTime = `${Math.floor(roundedCurrentMinutes / 60).toString().padStart(2, '0')}:${(roundedCurrentMinutes % 60).toString().padStart(2, '0')}`;
-            calculatedEndTime = format(addHours(parseISO(`2000-01-01T${calculatedStartTime}:00`), 1), "HH:mm");
-          }
-        }
 
         form.reset({
           title: "",

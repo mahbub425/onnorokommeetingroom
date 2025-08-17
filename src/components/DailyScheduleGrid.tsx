@@ -84,7 +84,8 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
     ).sort((a: Booking, b: Booking) => a.start_time.localeCompare(b.start_time));
   };
 
-  const isPastDate = isBefore(startOfDay(selectedDate), startOfDay(new Date()));
+  // Only block if the entire selected date is in the past
+  const canBookOnSelectedDate = !isBefore(startOfDay(selectedDate), startOfDay(new Date()));
 
   return (
     <div className="overflow-x-auto">
@@ -152,21 +153,18 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
               <div key={room.id} className="grid grid-cols-12 h-24 relative"> {/* This is the parent for absolute positioning */}
                 {/* Render background 30-minute cells */}
                 {visibleDetailedTimeSlots.map((slotTime: string, _index: number) => {
-                  const slotStartDateTime = parseISO(`2000-01-01T${slotTime}:00`);
-                  const slotEndDateTime = addMinutes(slotStartDateTime, 30); // End time of the 30-min slot
-
                   const isSlotOccupiedForClickability = dailyBookings.some((booking: Booking) => {
                     const bookingStart = parseISO(`2000-01-01T${booking.start_time}`);
                     const bookingEnd = parseISO(`2000-01-01T${booking.end_time}`);
+                    const slotStartDateTime = parseISO(`2000-01-01T${slotTime}:00`);
+                    const slotEndDateTime = addMinutes(slotStartDateTime, 30);
                     return (
                       (bookingStart.getTime() < slotEndDateTime.getTime() && bookingEnd.getTime() > slotStartDateTime.getTime())
                     );
                   });
 
-                  const now = new Date();
-
-                  // A slot is bookable if it's not a past date AND its end time has not passed yet
-                  const canBookThisSlot = !isPastDate && !isBefore(slotEndDateTime, now);
+                  // A slot is bookable if the entire selected date is not in the past
+                  const canBookThisSlot = canBookOnSelectedDate;
 
                   return (
                     <div

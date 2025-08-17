@@ -23,8 +23,8 @@ const timeToMinutes = (timeString: string) => {
   return hours * 60 + minutes;
 };
 
-// Helper to generate 30-minute time slots based on room's available time and current time
-const generateDynamic30MinSlots = (room: Room, selectedDateForBooking: Date) => {
+// Helper to generate 30-minute time slots based on room's available time
+const generateDynamic30MinSlots = (room: Room) => {
   const slots = [];
   const start = room.available_time?.start || "00:00";
   const end = room.available_time?.end || "23:59";
@@ -32,22 +32,10 @@ const generateDynamic30MinSlots = (room: Room, selectedDateForBooking: Date) => 
   let currentTimeSlot = parseISO(`2000-01-01T${start}:00`);
   const roomEndTime = parseISO(`2000-01-01T${end}:00`);
 
-  const now = new Date();
-  const isToday = isSameDay(selectedDateForBooking, now);
-
   // Ensure the loop includes the end time if it's on a 30-minute boundary
   while (isBefore(currentTimeSlot, roomEndTime) || isSameDay(currentTimeSlot, roomEndTime)) {
     const slotTimeStr = format(currentTimeSlot, "HH:mm");
-    const slotEndDateTime = addMinutes(currentTimeSlot, 30); // End time of the 30-min slot
-
-    // If it's today, only add slots whose END TIME is AFTER the current time
-    if (isToday) {
-      if (!isBefore(slotEndDateTime, now)) { // Slot's end time is not in the past
-        slots.push(slotTimeStr);
-      }
-    } else {
-      slots.push(slotTimeStr);
-    }
+    slots.push(slotTimeStr);
     currentTimeSlot = addMinutes(currentTimeSlot, 30); // Keep 30-minute visual slots
   }
   return slots;
@@ -91,7 +79,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   const roomBookings = dailyBookingsForSelectedRoomAndDate;
 
   // Generate dynamic time slots and hourly labels based on room's available time
-  const dynamic30MinSlots = room ? generateDynamic30MinSlots(room, selectedDate || new Date()) : []; // Pass selectedDate
+  const dynamic30MinSlots = room ? generateDynamic30MinSlots(room) : [];
   const dynamicHourlyLabels = room ? generateDynamicHourlyLabels(room) : [];
 
   useEffect(() => {
@@ -116,17 +104,13 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
       return;
     }
 
-    const now = new Date();
-    const isToday = isSameDay(selectedDate, now);
-    const slotEndDateTime = addMinutes(parseISO(`2000-01-01T${slotTime}`), 30);
-
-    // Check if the slot is in the past based on its end time
-    const canBookSlot = !isBefore(selectedDate || new Date(), startOfDay(new Date())) && !(isToday && isBefore(slotEndDateTime, now));
+    // Only block if the entire selected date is in the past
+    const canBookSlot = !isBefore(startOfDay(selectedDate), startOfDay(new Date()));
 
     if (!canBookSlot) {
       toast({
-        title: "Unavailable Time",
-        description: "This time slot has already passed or is currently ending.",
+        title: "Unavailable Date",
+        description: "Cannot book for past dates.",
         variant: "destructive",
       });
       return;
@@ -247,11 +231,8 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                   );
                 });
 
-                const now = new Date();
-                const isToday = isSameDay(selectedDate || new Date(), now);
-                
-                // A slot is bookable if it's not a past date AND its end time has not passed yet
-                const canBookSlot = !isBefore(selectedDate || new Date(), startOfDay(new Date())) && !(isToday && isBefore(slotEndDateTime, now));
+                // A slot is bookable if the entire selected date is not in the past
+                const canBookSlot = !isBefore(startOfDay(selectedDate || new Date()), startOfDay(new Date()));
 
                 // Only render the background cell if it's NOT occupied for clickability
                 if (!isSlotOccupiedForClickability) {

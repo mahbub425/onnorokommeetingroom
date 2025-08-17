@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, parseISO, addMinutes, isBefore, startOfDay, isSameDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, startOfDay, isAfter, isSameDay } from "date-fns";
 import { CalendarIcon, Clock, Text, Repeat, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Room, Booking } from "@/types/database";
@@ -22,10 +22,11 @@ const timeToMinutes = (timeString: string) => {
   return hours * 60 + minutes;
 };
 
-// Helper function to generate filtered time options based on room availability
+// Helper function to generate filtered time options based on room availability and current time
 const getFilteredTimeOptions = (
   roomAvailableStart?: string,
-  roomAvailableEnd?: string
+  roomAvailableEnd?: string,
+  selectedDateForBooking?: Date // New parameter
 ) => {
   const allOptions = [];
   const defaultStart = "00:00";
@@ -39,8 +40,33 @@ const getFilteredTimeOptions = (
   let currentTimeSlot = parseISO(`2000-01-01T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00`);
   const roomEndTime = parseISO(`2000-01-01T${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`);
 
+  const now = new Date();
+  const isToday = selectedDateForBooking ? isSameDay(selectedDateForBooking, now) : false;
+
+  // Calculate the current time rounded up to the nearest 15 minutes
+  let currentMinutes = now.getHours() * 60 + now.getMinutes();
+  let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
+  // Cap at 23:45 if rounding goes to next day
+  if (roundedCurrentMinutes >= 24 * 60) {
+    roundedCurrentMinutes = 23 * 60 + 45;
+  }
+  const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
+  const roundedCurrentMinute = roundedCurrentMinutes % 60;
+  const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
+  const roundedCurrentTime = parseISO(`2000-01-01T${roundedCurrentTimeStr}:00`);
+
   while (isBefore(currentTimeSlot, roomEndTime) || isSameDay(currentTimeSlot, roomEndTime)) {
-    allOptions.push(format(currentTimeSlot, "HH:mm"));
+    const slotTimeStr = format(currentTimeSlot, "HH:mm");
+    
+    // If it's today, only add slots that are at or after the rounded current time
+    if (isToday) {
+      if (isAfter(currentTimeSlot, roundedCurrentTime) || isSameDay(currentTimeSlot, roundedCurrentTime)) {
+        allOptions.push(slotTimeStr);
+      }
+    } else {
+      // For future dates, add all slots within room's available time
+      allOptions.push(slotTimeStr);
+    }
     currentTimeSlot = addMinutes(currentTimeSlot, 15); // 15-minute interval
   }
   return allOptions;
@@ -123,60 +149,69 @@ const BookingFormDialog: React.FC<BookingFormDialogProps> = ({
     if (room) {
       const options = getFilteredTimeOptions(
         room.available_time?.start,
-        room.available_time?.end
+        room.available_time?.end,
+        selectedDate // Pass selectedDate here
       );
       setTimeOptions(options);
 
       if (!existingBooking && options.length > 0) {
-        form.setValue("startTime", initialStartTime || options[0]);
-        const defaultEndTime = format(addMinutes(parseISO(`2000-01-01T${options[0]}:00`), 60), "HH:mm");
+        const now = new Date();
+        const isToday = isSameDay(selectedDate, now);
+        
+        let defaultStart = initialStartTime || options[0];
+        if (isToday) {
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+          let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
+          if (roundedCurrentMinutes >= 24 * 60) {
+            roundedCurrentMinutes = 23 * 60 + 45;
+          }
+          const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
+          const roundedCurrentMinute = roundedCurrentMinutes % 60;
+          const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
+
+          // Find the first option that is >= roundedCurrentTimeStr
+          const firstAvailableOption = options.find(opt => timeToMinutes(opt) >= timeToMinutes(roundedCurrentTimeStr));
+          if (firstAvailableOption) {
+            defaultStart = firstAvailableOption;
+          } else {
+            // If no future slots available today (e.g., late in the day), default to the last possible slot or disable booking
+            // For now, let's default to the last available slot if any, otherwise keep the first option.
+            defaultStart = options[options.length - 1] || initialStartTime || "09:00";
+          }
+        }
+
+        form.setValue("startTime", defaultStart);
+        const defaultEndTime = format(addMinutes(parseISO(`2000-01-01T${defaultStart}:00`), 60), "HH:mm");
         form.setValue("endTime", initialEndTime || defaultEndTime);
       }
     } else {
-      setTimeOptions(getFilteredTimeOptions());
-    }
-  }, [room, initialStartTime, initialEndTime, existingBooking, form]);
-
-  useEffect(() => {
-    if (open && room) {
-      const currentFilteredTimeOptions = getFilteredTimeOptions(
-        room.available_time?.start,
-        room.available_time?.end
-      );
-      setTimeOptions(currentFilteredTimeOptions);
-
-      if (existingBooking) {
-        form.reset({
-          title: existingBooking.title,
-          date: parseISO(existingBooking.date),
-          startTime: existingBooking.start_time.substring(0, 5),
-          endTime: existingBooking.end_time.substring(0, 5),
-          repeatType: "no_repeat",
-          remarks: existingBooking.remarks || "",
-        });
-      } else {
-        const defaultStartTimeForNewBooking = initialStartTime || (currentFilteredTimeOptions.length > 0 ? currentFilteredTimeOptions[0] : "09:00");
-        const defaultEndTimeForNewBooking = initialEndTime || (currentFilteredTimeOptions.length > 0 ? format(addMinutes(parseISO(`2000-01-01T${defaultStartTimeForNewBooking}:00`), 60), "HH:mm") : "10:00");
-
-        form.reset({
-          title: "",
-          date: selectedDate,
-          startTime: defaultStartTimeForNewBooking,
-          endTime: defaultEndTimeForNewBooking,
-          repeatType: "no_repeat",
-          remarks: "",
-        });
+      // If no room selected, use default full-day time options
+      const options = getFilteredTimeOptions(undefined, undefined, selectedDate);
+      setTimeOptions(options);
+      if (!existingBooking && options.length > 0) {
+        const now = new Date();
+        const isToday = isSameDay(selectedDate, now);
+        let defaultStart = initialStartTime || options[0];
+        if (isToday) {
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+          let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
+          if (roundedCurrentMinutes >= 24 * 60) {
+            roundedCurrentMinutes = 23 * 60 + 45;
+          }
+          const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
+          const roundedCurrentMinute = roundedCurrentMinutes % 60;
+          const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
+          const firstAvailableOption = options.find(opt => timeToMinutes(opt) >= timeToMinutes(roundedCurrentTimeStr));
+          if (firstAvailableOption) {
+            defaultStart = firstAvailableOption;
+          } else {
+            defaultStart = options[options.length - 1] || initialStartTime || "09:00";
+          }
+        }
+        form.setValue("startTime", defaultStart);
+        const defaultEndTime = format(addMinutes(parseISO(`2000-01-01T${defaultStart}:00`), 60), "HH:mm");
+        form.setValue("endTime", initialEndTime || defaultEndTime);
       }
-    } else if (open && !room) {
-      setTimeOptions(getFilteredTimeOptions());
-      form.reset({
-        title: "",
-        date: selectedDate,
-        startTime: initialStartTime || "09:00",
-        endTime: initialEndTime || "10:00",
-        repeatType: "no_repeat",
-        remarks: "",
-      });
     }
   }, [open, room, selectedDate, initialStartTime, initialEndTime, existingBooking, form]);
 

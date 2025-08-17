@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Room, Booking } from "@/types/database";
-import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, differenceInMinutes, startOfDay, isSameDay } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,12 @@ const generateHourlyLabels = () => {
     labels.push(format(parseISO(`2000-01-01T${i.toString().padStart(2, '0')}:00:00`), "h a"));
   }
   return labels;
+};
+
+// Helper to convert HH:MM to minutes from midnight
+const timeToMinutes = (timeString: string) => {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + minutes;
 };
 
 interface DailyScheduleGridProps {
@@ -76,6 +82,19 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
   };
 
   const isPastDate = isBefore(startOfDay(selectedDate), startOfDay(new Date()));
+  const isToday = isSameDay(selectedDate, new Date());
+
+  // Calculate the current time rounded up to the nearest 15 minutes
+  const now = new Date();
+  let currentMinutes = now.getHours() * 60 + now.getMinutes();
+  let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
+  if (roundedCurrentMinutes >= 24 * 60) {
+    roundedCurrentMinutes = 23 * 60 + 45;
+  }
+  const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
+  const roundedCurrentMinute = roundedCurrentMinutes % 60;
+  const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
+  const roundedCurrentTimeInMinutes = timeToMinutes(roundedCurrentTimeStr);
 
   return (
     <div className="overflow-x-auto">
@@ -154,19 +173,26 @@ const DailyScheduleGrid: React.FC<DailyScheduleGridProps> = ({
                     );
                   });
 
-                  const canBook = !isPastDate; // Only prevent booking for past dates
+                  const slotStartInMinutes = timeToMinutes(slotTime);
+                  const canBookThisSlot = !isPastDate && !(isToday && slotStartInMinutes < roundedCurrentTimeInMinutes);
 
                   return (
                     <div
                       key={`${room.id}-bg-slot-${slotTime}`}
                       className={cn(
                         "h-full flex items-center justify-center p-1 border-r border-b border-gray-200 dark:border-gray-700 last:border-r-0",
-                        isSlotOccupiedForClickability ? "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60" : (canBook ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60")
+                        isSlotOccupiedForClickability ? "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60" : (canBookThisSlot ? "bg-gray-50 dark:bg-gray-700/20 group hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer" : "bg-gray-100 dark:bg-gray-700/10 cursor-not-allowed opacity-60")
                       )}
-                      onClick={!isSlotOccupiedForClickability && canBook ? () => onBookSlot(room.id, selectedDate, slotTime, format(addMinutes(parseISO(`2000-01-01T${slotTime}`), 60), "HH:mm")) : undefined}
+                      onClick={!isSlotOccupiedForClickability && canBookThisSlot ? () => {
+                        // Determine the actual start time for booking based on current time
+                        const actualBookingStartTime = isToday && slotStartInMinutes < roundedCurrentTimeInMinutes
+                          ? roundedCurrentTimeStr
+                          : slotTime;
+                        onBookSlot(room.id, selectedDate, actualBookingStartTime, format(addMinutes(parseISO(`2000-01-01T${actualBookingStartTime}`), 60), "HH:mm"));
+                      } : undefined}
                       style={{ gridColumn: `span 1` }} // Each empty slot is 30 minutes, spans 1 grid column
                     >
-                      {!isSlotOccupiedForClickability && <Plus className={cn("h-5 w-5 text-gray-400", canBook ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />}
+                      {!isSlotOccupiedForClickability && <Plus className={cn("h-5 w-5 text-gray-400", canBookThisSlot ? "opacity-0 group-hover:opacity-100 transition-opacity" : "opacity-50")} />}
                     </div>
                   );
                 })}

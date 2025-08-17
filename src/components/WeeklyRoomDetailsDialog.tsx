@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes } from "date-fns";
+import { format, parseISO, addMinutes, isBefore, isAfter, isSameDay, startOfWeek, addDays, differenceInMinutes, startOfDay } from "date-fns";
 import { Plus } from "lucide-react";
 import { Room, Booking } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
@@ -17,8 +17,14 @@ interface WeeklyRoomDetailsDialogProps {
   onViewBooking: (booking: Booking) => void;
 }
 
-// Helper to generate 30-minute time slots based on room's available time
-const generateDynamic30MinSlots = (room: Room) => {
+// Helper to convert HH:MM to minutes from midnight
+const timeToMinutes = (timeString: string) => {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+// Helper to generate 30-minute time slots based on room's available time and current time
+const generateDynamic30MinSlots = (room: Room, selectedDateForBooking: Date) => {
   const slots = [];
   const start = room.available_time?.start || "00:00";
   const end = room.available_time?.end || "23:59";
@@ -26,10 +32,32 @@ const generateDynamic30MinSlots = (room: Room) => {
   let currentTime = parseISO(`2000-01-01T${start}:00`);
   const endTime = parseISO(`2000-01-01T${end}:00`);
 
+  const now = new Date();
+  const isToday = isSameDay(selectedDateForBooking, now);
+
+  // Calculate the current time rounded up to the nearest 15 minutes
+  let currentMinutes = now.getHours() * 60 + now.getMinutes();
+  let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
+  if (roundedCurrentMinutes >= 24 * 60) {
+    roundedCurrentMinutes = 23 * 60 + 45;
+  }
+  const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
+  const roundedCurrentMinute = roundedCurrentMinutes % 60;
+  const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
+  const roundedCurrentTime = parseISO(`2000-01-01T${roundedCurrentTimeStr}:00`);
+
   // Ensure the loop includes the end time if it's on a 30-minute boundary
   while (isBefore(currentTime, endTime) || isSameDay(currentTime, endTime)) {
-    slots.push(format(currentTime, "HH:mm"));
-    currentTime = addMinutes(currentTime, 30); // Changed to 30-minute interval
+    const slotTimeStr = format(currentTime, "HH:mm");
+    // Only add slots that are at or after the rounded current time if it's today
+    if (isToday) {
+      if (isAfter(currentTime, roundedCurrentTime) || isSameDay(currentTime, roundedCurrentTime)) {
+        slots.push(slotTimeStr);
+      }
+    } else {
+      slots.push(slotTimeStr);
+    }
+    currentTime = addMinutes(currentTime, 30); // Keep 30-minute visual slots
   }
   return slots;
 };
@@ -57,11 +85,6 @@ const generateDynamicHourlyLabels = (room: Room) => {
   return labels;
 };
 
-// Helper to convert HH:MM to minutes from midnight
-const timeToMinutes = (timeString: string) => {
-  const [hours, minutes] = timeString.split(':').map(Number);
-  return hours * 60 + minutes;
-};
 
 const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   open,
@@ -77,7 +100,7 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
   const roomBookings = dailyBookingsForSelectedRoomAndDate;
 
   // Generate dynamic time slots and hourly labels based on room's available time
-  const dynamic30MinSlots = room ? generateDynamic30MinSlots(room) : [];
+  const dynamic30MinSlots = room ? generateDynamic30MinSlots(room, selectedDate || new Date()) : []; // Pass selectedDate
   const dynamicHourlyLabels = room ? generateDynamicHourlyLabels(room) : [];
 
   useEffect(() => {
@@ -102,10 +125,28 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
       return;
     }
 
+    // Determine the actual start time for booking based on current time and 15-min granularity
+    const now = new Date();
+    const isToday = isSameDay(selectedDate, now);
+    let currentMinutes = now.getHours() * 60 + now.getMinutes();
+    let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
+    if (roundedCurrentMinutes >= 24 * 60) {
+      roundedCurrentMinutes = 23 * 60 + 45;
+    }
+    const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
+    const roundedCurrentMinute = roundedCurrentMinutes % 60;
+    const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
+    const roundedCurrentTimeInMinutes = timeToMinutes(roundedCurrentTimeStr);
+
+    let actualBookingStartTime = slotTime;
+    if (isToday && slotStartMinutes < roundedCurrentTimeInMinutes) {
+      actualBookingStartTime = roundedCurrentTimeStr;
+    }
+
     // If no conflict and within available time, proceed to book
     // Pass a default 1-hour end time, user can adjust in the form
-    const potentialBookingEnd = addMinutes(parseISO(`2000-01-01T${slotTime}:00`), 60); 
-    onBookSlot(room.id, selectedDate, slotTime, format(potentialBookingEnd, "HH:mm"));
+    const potentialBookingEnd = addMinutes(parseISO(`2000-01-01T${actualBookingStartTime}:00`), 60); 
+    onBookSlot(room.id, selectedDate, actualBookingStartTime, format(potentialBookingEnd, "HH:mm"));
     onOpenChange(false); // Close this dialog after initiating booking
   };
 
@@ -220,7 +261,20 @@ const WeeklyRoomDetailsDialog: React.FC<WeeklyRoomDetailsDialogProps> = ({
                   );
                 });
 
-                const canBookSlot = true; // Always allow booking for any time slot
+                const now = new Date();
+                const isToday = isSameDay(selectedDate || new Date(), now);
+                let currentMinutes = now.getHours() * 60 + now.getMinutes();
+                let roundedCurrentMinutes = Math.ceil(currentMinutes / 15) * 15;
+                if (roundedCurrentMinutes >= 24 * 60) {
+                  roundedCurrentMinutes = 23 * 60 + 45;
+                }
+                const roundedCurrentHour = Math.floor(roundedCurrentMinutes / 60);
+                const roundedCurrentMinute = roundedCurrentMinutes % 60;
+                const roundedCurrentTimeStr = `${roundedCurrentHour.toString().padStart(2, '0')}:${roundedCurrentMinute.toString().padStart(2, '0')}`;
+                const roundedCurrentTimeInMinutes = timeToMinutes(roundedCurrentTimeStr);
+
+                const slotStartInMinutes = timeToMinutes(slotTime);
+                const canBookSlot = !isBefore(selectedDate || new Date(), startOfDay(new Date())) && !(isToday && slotStartInMinutes < roundedCurrentTimeInMinutes);
 
                 // Only render the background cell if it's NOT occupied for clickability
                 if (!isSlotOccupiedForClickability) {
